@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPM CRM — Digital Marketing Agency</title>
+<link rel="stylesheet" href="css/styles.css">
+<!-- Firebase SDKs (compat build — works with plain script tags, no bundler needed) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+</head>
+<body>
+
+<!-- ══ LOGIN SCREEN (shown until the user signs in) ══ -->
+<div class="overlay show" id="auth-overlay" style="z-index:1000;background:linear-gradient(135deg,#111827,#1f2937);">
+  <div class="modal" style="width:380px;margin-top:12vh;" onclick="event.stopPropagation()">
+    <div class="modal-head" style="justify-content:center;flex-direction:column;gap:8px;text-align:center;padding-top:28px;">
+      <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#2563eb 0%,#7c3aed 60%,#ec4899 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(124,58,237,0.45);margin-bottom:6px;">
+        <span style="font-size:16px;font-weight:900;color:#fff;">RPM</span>
+      </div>
+      <h2>RPM CRM Login</h2>
+    </div>
+    <div class="modal-body">
+      <div id="auth-login-view">
+        <div class="field" style="margin-bottom:12px;">
+          <label>Email</label>
+          <input id="auth-email" type="email" placeholder="you@rpm.com" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <div class="field" style="margin-bottom:6px;">
+          <label>Password</label>
+          <input id="auth-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <div style="text-align:right;margin-bottom:4px;">
+          <a href="#" onclick="showForgotView();return false;" style="font-size:11px;color:var(--muted);text-decoration:none;">Forgot password?</a>
+        </div>
+        <div id="auth-error" style="color:var(--hot);font-size:12px;margin:8px 0;display:none;"></div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:10px;" onclick="doLogin()">Login</button>
+        <div style="font-size:12px;color:var(--muted);margin-top:14px;text-align:center;">
+          Don't have an account? <a href="#" onclick="showSignupView();return false;" style="color:var(--accent);font-weight:600;text-decoration:none;">Sign up</a>
+        </div>
+      </div>
+
+      <div id="auth-forgot-view" style="display:none;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">
+          Enter your account email — we'll send you a link to reset your password.
+        </div>
+        <div class="field" style="margin-bottom:6px;">
+          <label>Email</label>
+          <input id="forgot-email" type="email" placeholder="you@rpm.com" onkeydown="if(event.key==='Enter')doForgotPassword()">
+        </div>
+        <div id="forgot-error" style="color:var(--hot);font-size:12px;margin:8px 0;display:none;"></div>
+        <div id="forgot-success" style="color:var(--green);font-size:12px;margin:8px 0;display:none;"></div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:10px;" onclick="doForgotPassword()">Send Reset Link</button>
+        <div style="font-size:12px;color:var(--muted);margin-top:14px;text-align:center;">
+          <a href="#" onclick="showLoginView();return false;" style="color:var(--accent);font-weight:600;text-decoration:none;">← Back to Login</a>
+        </div>
+      </div>
+
+      <div id="auth-signup-view" style="display:none;">
+        <div class="field" style="margin-bottom:12px;">
+          <label>Full Name</label>
+          <input id="signup-name" type="text" placeholder="e.g. Ahmed Raza">
+        </div>
+        <div class="field" style="margin-bottom:12px;">
+          <label>Email</label>
+          <input id="signup-email" type="email" placeholder="you@rpm.com">
+        </div>
+        <div class="field" style="margin-bottom:12px;">
+          <label>Password</label>
+          <input id="signup-password" type="password" placeholder="At least 6 characters">
+        </div>
+        <div class="field" style="margin-bottom:6px;">
+          <label>Confirm Password</label>
+          <input id="signup-confirm" type="password" placeholder="Re-enter password" onkeydown="if(event.key==='Enter')doSignup()">
+        </div>
+        <div id="signup-error" style="color:var(--hot);font-size:12px;margin:8px 0;display:none;"></div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:10px;" onclick="doSignup()">Sign Up</button>
+        <div style="font-size:12px;color:var(--muted);margin-top:14px;text-align:center;">
+          Already have an account? <a href="#" onclick="showLoginView();return false;" style="color:var(--accent);font-weight:600;text-decoration:none;">Login</a>
+        </div>
+      </div>
+
+      <div id="auth-pending-view" style="display:none;text-align:center;">
+        <div style="font-size:32px;margin-bottom:10px;">⏳</div>
+        <div style="font-weight:700;margin-bottom:6px;">Waiting for Approval</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:16px;">
+          Your account has been created, but the admin hasn't approved it yet. Please log in again once approved.
+        </div>
+        <button class="btn btn-ghost" style="width:100%;justify-content:center;" onclick="showLoginView()">Back to Login</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="app-root" style="display:none;">
+
+<!-- ── Sidebar ── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-badge"><span>RPM</span></div>
+    <div class="logo-text-wrap">
+      <div class="logo-text">RPM</div>
+      <div class="logo-sub">CRM</div>
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Menu</div>
+    <button class="nav-item active" onclick="showPage('dashboard', this)">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      <span>Dashboard</span>
+    </button>
+    <button class="nav-item" onclick="showPage('leads', this)">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      <span>All Leads</span>
+      <span class="badge-count" id="sb-leads-count">0</span>
+    </button>
+    <button class="nav-item" onclick="showPage('pipeline', this)">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>
+      <span>Pipeline</span>
+    </button>
+    <button class="nav-item" onclick="showPage('followups', this)" id="nav-followups">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      <span>Follow-Ups</span>
+      <span class="badge-count" id="sb-followup-count" style="display:none">0</span>
+    </button>
+    <button class="nav-item" onclick="showPage('revenue', this)" id="nav-revenue">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 10v2m0-16a9 9 0 100 18 9 9 0 000-18z"/></svg>
+      <span>Revenue</span>
+    </button>
+    <button class="nav-item" onclick="showPage('clients', this)" id="nav-clients">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 6v-3a1 1 0 011-1h2a1 1 0 011 1v3"/></svg>
+      <span>Clients</span>
+    </button>
+    <button class="nav-item" onclick="showPage('tasks', this)" id="nav-tasks">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+      <span>Tasks</span>
+    </button>
+    <button class="nav-item" onclick="showPage('team', this)" id="nav-team" style="display:none">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      <span>Team</span>
+      <span class="badge-count" id="sb-pending-count" style="display:none">0</span>
+    </button>
+  </div>
+</aside>
+
+<!-- ── Main ── -->
+<div class="main">
+
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">Dashboard</div>
+    <div class="topbar-right">
+      <!-- Global search -->
+      <div id="topbar-search-wrap" style="position:relative;">
+        <input id="global-search-input" type="text" placeholder="🔍 Search leads, clients, tasks..."
+          oninput="renderGlobalSearchResults()" onfocus="renderGlobalSearchResults()"
+          style="width:230px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;">
+        <div id="global-search-results" style="display:none;position:absolute;top:calc(100% + 6px);left:0;width:320px;max-height:400px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:200;"></div>
+      </div>
+
+      <!-- Notifications -->
+      <div id="topbar-notif-wrap" style="position:relative;">
+        <button class="btn btn-ghost" onclick="toggleNotifDropdown()" style="position:relative;font-size:16px;padding:7px 12px;">
+          🔔
+          <span id="notif-badge" style="display:none;position:absolute;top:2px;right:2px;background:var(--hot);color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center;padding:0 3px;"></span>
+        </button>
+        <div id="notif-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);right:0;width:320px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:200;"></div>
+      </div>
+
+      <!-- Dark / Light mode toggle -->
+      <button class="btn btn-ghost" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode" style="font-size:16px;padding:7px 12px;">🌙</button>
+      <button class="btn btn-success" onclick="exportCSV()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Export Excel
+      </button>
+      <button class="btn btn-primary" onclick="openLeadModal()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Add Lead
+      </button>
+      <span id="topbar-user-email" style="font-size:12px;color:var(--muted);margin-left:4px;"></span>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()" title="Logout">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ DASHBOARD PAGE ══ -->
+  <div id="page-dashboard" class="page active">
+
+    <!-- Stat cards -->
+    <div class="stat-grid" id="dash-stats"></div>
+
+    <!-- Today's follow-ups -->
+    <div id="followup-strip-wrap"></div>
+
+    <!-- Revenue preview -->
+    <div style="margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">💰 This Month's Revenue</div>
+        <button class="btn btn-ghost btn-sm" onclick="showPage('revenue', document.getElementById('nav-revenue'))">View Revenue →</button>
+      </div>
+      <div class="stat-grid" style="grid-template-columns:repeat(2,1fr);" id="dash-revenue-stats"></div>
+    </div>
+
+    <!-- Pipeline preview -->
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Pipeline Overview</div>
+      <div class="pipeline-wrap" id="dash-pipeline"></div>
+    </div>
+
+    <!-- Hot leads -->
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--hot);text-transform:uppercase;letter-spacing:0.5px;">🔥 Hot Leads</div>
+      <div class="table-wrap" id="hot-leads-table"></div>
+    </div>
+
+    <!-- Upcoming renewals -->
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--warm);text-transform:uppercase;letter-spacing:0.5px;">📅 Upcoming Renewals (next 30 days)</div>
+      <div class="table-wrap" id="dash-renewals-table"></div>
+    </div>
+  </div>
+
+  <!-- ══ ALL LEADS PAGE ══ -->
+  <div id="page-leads" class="page">
+
+    <!-- Filters -->
+    <div class="filters-bar">
+      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--muted)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
+      <input type="text" id="search-input" placeholder="Search name, business, phone, email..." oninput="renderLeadsTable()" style="flex:1;min-width:200px;">
+      <label>Status</label>
+      <select id="filter-status" onchange="renderLeadsTable()">
+        <option value="">All</option>
+        <option value="Cold">Cold</option>
+        <option value="Warm">Warm</option>
+        <option value="Hot">Hot</option>
+      </select>
+      <label>Stage</label>
+      <select id="filter-stage" onchange="renderLeadsTable()">
+        <option value="">All Stages</option>
+        <option value="New Lead">New Lead</option>
+        <option value="Contacted">Contacted</option>
+        <option value="Follow-Up">Follow-Up</option>
+        <option value="Interested">Interested</option>
+        <option value="Closed Won">Closed Won</option>
+        <option value="Closed Lost">Closed Lost</option>
+      </select>
+      <label>City</label>
+      <select id="filter-city" onchange="renderLeadsTable()">
+        <option value="">All Cities</option>
+      </select>
+      <label>Industry</label>
+      <select id="filter-industry" onchange="renderLeadsTable()">
+        <option value="">All Industries</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable-th" onclick="sortLeadsBy('ownerName')">Lead<span class="sort-arrow" id="sort-arrow-ownerName"></span></th>
+            <th class="sortable-th" onclick="sortLeadsBy('dialer')">Dialer<span class="sort-arrow" id="sort-arrow-dialer"></span></th>
+            <th>Phone</th>
+            <th>Services</th>
+            <th class="sortable-th" onclick="sortLeadsBy('price')">Price<span class="sort-arrow" id="sort-arrow-price"></span></th>
+            <th class="sortable-th" onclick="sortLeadsBy('status')">Status<span class="sort-arrow" id="sort-arrow-status"></span></th>
+            <th class="sortable-th" onclick="sortLeadsBy('stage')">Stage<span class="sort-arrow" id="sort-arrow-stage"></span></th>
+            <th class="sortable-th" onclick="sortLeadsBy('followupDate')">Follow-Up<span class="sort-arrow" id="sort-arrow-followupDate"></span></th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="leads-tbody"></tbody>
+      </table>
+      <div id="leads-empty" class="empty-state" style="display:none">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <p>No leads found. Add your first lead or adjust filters.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ PIPELINE PAGE ══ -->
+  <div id="page-pipeline" class="page">
+    <div class="pipeline-wrap" id="pipeline-board" style="align-items:flex-start;"></div>
+  </div>
+
+  <!-- ══ FOLLOW-UPS PAGE ══ -->
+  <div id="page-followups" class="page">
+    <div id="followup-strip-wrap2"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Lead</th>
+            <th>Business</th>
+            <th>Dialer</th>
+            <th>Phone</th>
+            <th>Next Follow-Up</th>
+            <th>Last Contact</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="followups-tbody"></tbody>
+      </table>
+      <div id="followups-empty" class="empty-state" style="display:none">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <p>No follow-ups scheduled. Set a next follow-up date on a lead.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ REVENUE PAGE ══ -->
+  <div id="page-revenue" class="page">
+    <div class="filters-bar" style="justify-content:space-between;">
+      <button class="btn btn-ghost btn-sm" onclick="shiftRevenueMonth(-1)">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        Previous Month
+      </button>
+      <div id="revenue-month-label" style="font-size:15px;font-weight:800;"></div>
+      <button class="btn btn-ghost btn-sm" id="revenue-next-btn" onclick="shiftRevenueMonth(1)">
+        Next Month
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+
+    <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px;" id="revenue-stats"></div>
+
+    <div style="margin-bottom:16px;">
+      <div id="revenue-table-title" style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Closed Deals — This Month</div>
+      <div class="table-wrap" id="revenue-table"></div>
+    </div>
+  </div>
+
+  <!-- ══ CLIENTS PAGE (Support module) ══ -->
+  <div id="page-clients" class="page">
+    <div class="filters-bar" style="justify-content:space-between;">
+      <div style="display:flex;gap:10px;align-items:center;flex:1;">
+        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--muted)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
+        <input type="text" id="client-search" placeholder="Search business, owner, phone, email..." oninput="renderClientsTable()" style="flex:1;min-width:200px;">
+        <label>Status</label>
+        <select id="client-filter-status" onchange="renderClientsTable()">
+          <option value="">All</option>
+          <option value="Active">Active</option>
+          <option value="Paused">Paused</option>
+          <option value="Churned">Churned</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:5px;font-weight:600;cursor:pointer;">
+          <input type="checkbox" id="client-filter-renewal-soon" onchange="renderClientsTable()" style="width:14px;height:14px;accent-color:#2563eb;">
+          Renewal ≤ 30 days
+        </label>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openClientModal()">+ Add Client</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Client</th>
+            <th>Package</th>
+            <th>Monthly Fee</th>
+            <th>Phone</th>
+            <th>Renewal</th>
+            <th>Onboarding</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="clients-tbody"></tbody>
+      </table>
+      <div id="clients-empty" class="empty-state" style="display:none">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/></svg>
+        <p>No clients yet. Clients appear automatically when a lead is Closed Won, or add one manually.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TASKS PAGE (all tasks, across all clients) ══ -->
+  <div id="page-tasks" class="page">
+    <div class="filters-bar" style="justify-content:space-between;flex-wrap:wrap;">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <label>Status</label>
+        <select id="task-filter-status" onchange="renderGlobalTasksPage()">
+          <option value="">All</option>
+          <option>Pending</option><option>Working</option><option>Review</option><option>Completed</option><option>Cancelled</option>
+        </select>
+        <label>Priority</label>
+        <select id="task-filter-priority" onchange="renderGlobalTasksPage()">
+          <option value="">All</option>
+          <option>Low</option><option>Medium</option><option>High</option><option>Urgent</option>
+        </select>
+        <label>Assigned To</label>
+        <select id="task-filter-assignee" onchange="renderGlobalTasksPage()">
+          <option value="">Everyone</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openAddTaskModal()">+ Add Task</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Client</th>
+            <th>Assigned To</th>
+            <th>Priority</th>
+            <th>Due Date</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tasks-page-tbody"></tbody>
+      </table>
+      <div id="tasks-page-empty" class="empty-state" style="display:none">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/></svg>
+        <p>No tasks match these filters.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TEAM PAGE (admin only) ══ -->
+  <div id="page-team" class="page">
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--warm);text-transform:uppercase;letter-spacing:0.5px;">⏳ Pending Approval</div>
+      <div class="table-wrap" id="team-pending-table"></div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Approved Team Members</div>
+      <div class="table-wrap" id="team-approved-table"></div>
+    </div>
+  </div>
+
+</div><!-- end .main -->
+</div><!-- end .app -->
+
+<!-- ══ ADD/EDIT LEAD MODAL ══ -->
+<div class="overlay" id="lead-modal-overlay" onclick="closeModalOnOverlay(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="modal-title">Add New Lead</h2>
+      <button class="btn-icon" onclick="closeLeadModal()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Assignment -->
+      <div class="modal-section">
+        <div class="modal-section-title">Assignment</div>
+        <div class="form-grid">
+          <div class="field"><label>Dialer Name *</label><input id="f-dialer" placeholder="e.g. Ahmed Raza"></div>
+          <div class="field">
+            <label>Closer</label>
+            <select id="f-closer"><option value="">— Unassigned —</option></select>
+          </div>
+          <div class="field full">
+            <label>Support Manager <span style="font-weight:400;color:var(--muted);">(who this becomes a client for, once Closed Won)</span></label>
+            <select id="f-support"><option value="">— Unassigned —</option></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Business Info -->
+      <div class="modal-section">
+        <div class="modal-section-title">Business Info</div>
+        <div class="form-grid">
+          <div class="field"><label>Business Name *</label><input id="f-bizname" placeholder="e.g. Supreme Dental Clinic"></div>
+          <div class="field"><label>Owner Name</label><input id="f-owner" placeholder="e.g. Dr. Khan"></div>
+          <div class="field"><label>Industry / Niche</label><input id="f-industry" placeholder="e.g. Dentist, Restaurant, HVAC"></div>
+          <div class="field"><label>City</label><input id="f-city" placeholder="e.g. Houston, TX"></div>
+          <div class="field"><label>Price</label><input id="f-price" type="number" min="0" step="0.01" placeholder="e.g. 500"></div>
+          <div class="field full"><label>Services Offered / Pitch</label><input id="f-services" placeholder="e.g. GMB Optimization, SEO, Website"></div>
+        </div>
+      </div>
+
+      <!-- Contact Details -->
+      <div class="modal-section">
+        <div class="modal-section-title">Contact Details</div>
+        <div class="form-grid">
+          <div class="field"><label>Phone (Primary) *</label><input id="f-phone1" placeholder="+1 (555) 000-0000" type="tel"></div>
+          <div class="field"><label>Phone (Secondary)</label><input id="f-phone2" placeholder="+1 (555) 000-0000" type="tel"></div>
+          <div class="field"><label>Email (Primary) *</label><input id="f-email1" placeholder="owner@business.com" type="email"></div>
+          <div class="field"><label>Email (Secondary)</label><input id="f-email2" placeholder="info@business.com" type="email"></div>
+        </div>
+      </div>
+
+      <!-- URLs -->
+      <div class="modal-section">
+        <div class="modal-section-title">Online Presence</div>
+        <div class="form-grid">
+          <div class="field"><label>Yelp URL</label><input id="f-yelp" placeholder="https://yelp.com/biz/..."></div>
+          <div class="field"><label>GMB URL</label><input id="f-gmb" placeholder="https://g.page/..."></div>
+          <div class="field full"><label>Website URL</label><input id="f-website" placeholder="https://www.business.com"></div>
+        </div>
+      </div>
+
+      <!-- Status & Pipeline -->
+      <div class="modal-section">
+        <div class="modal-section-title">Status & Pipeline</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Lead Status</label>
+            <select id="f-status">
+              <option value="Cold">❄️ Cold</option>
+              <option value="Warm">🌤 Warm</option>
+              <option value="Hot">🔥 Hot</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Pipeline Stage</label>
+            <select id="f-stage">
+              <option value="New Lead">New Lead</option>
+              <option value="Contacted">Contacted</option>
+              <option value="Follow-Up">Follow-Up</option>
+              <option value="Interested">Interested</option>
+              <option value="Closed Won">Closed Won</option>
+              <option value="Closed Lost">Closed Lost</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Next Follow-Up Date</label>
+            <input id="f-followup-date" type="date">
+          </div>
+          <div class="field">
+            <label>Last Contact Date</label>
+            <input id="f-last-contact" type="date">
+          </div>
+          <div class="field full">
+            <div style="font-size:11px;color:var(--muted);padding:8px 10px;background:var(--bg);border-radius:6px;border:1px dashed var(--border);">
+              📞 Call notes now live in the <strong>Activity Log</strong> on this lead's detail panel — open the lead and scroll down to add a call/update entry.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeLeadModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveLead()">Save Lead</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DETAIL PANEL ══ -->
+<div class="detail-overlay" id="detail-overlay" onclick="closeDetailOnOverlay(event)">
+  <div class="detail-panel" onclick="event.stopPropagation()">
+    <div class="detail-head">
+      <div class="dh-top">
+        <div>
+          <div class="dh-name" id="dp-name"></div>
+          <div class="dh-biz" id="dp-biz"></div>
+        </div>
+        <button class="btn-icon" onclick="closeDetail()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="dh-badges" id="dp-badges"></div>
+    </div>
+    <div class="detail-body" id="dp-body"></div>
+    <div class="detail-actions" id="dp-actions"></div>
+  </div>
+</div>
+
+<!-- ══ ADD / EDIT CLIENT MODAL ══ -->
+<div class="overlay" id="client-modal-overlay" onclick="closeClientModalOnOverlay(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="client-modal-title">Add New Client</h2>
+      <button class="btn-icon" onclick="closeClientModal()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <div class="modal-section-title">Business Info</div>
+        <div class="form-grid">
+          <div class="field"><label>Business Name *</label><input id="cf-bizname" placeholder="e.g. Supreme Dental Clinic"></div>
+          <div class="field"><label>Owner Name</label><input id="cf-owner" placeholder="e.g. Dr. Khan"></div>
+          <div class="field"><label>Industry / Niche</label><input id="cf-industry" placeholder="e.g. Dentist, Restaurant, HVAC"></div>
+          <div class="field"><label>City</label><input id="cf-city" placeholder="e.g. Houston, TX"></div>
+        </div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">Contact Details</div>
+        <div class="form-grid">
+          <div class="field"><label>Phone (Primary) *</label><input id="cf-phone1" placeholder="+1 (555) 000-0000" type="tel"></div>
+          <div class="field"><label>Phone (Secondary)</label><input id="cf-phone2" placeholder="+1 (555) 000-0000" type="tel"></div>
+          <div class="field"><label>Email (Primary)</label><input id="cf-email1" placeholder="owner@business.com" type="email"></div>
+          <div class="field"><label>Email (Secondary)</label><input id="cf-email2" placeholder="info@business.com" type="email"></div>
+        </div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">Service & Billing</div>
+        <div class="form-grid">
+          <div class="field"><label>Service Package</label><input id="cf-package" placeholder="e.g. GMB + SEO + Website"></div>
+          <div class="field"><label>Monthly Fee</label><input id="cf-fee" type="number" min="0" step="0.01" placeholder="e.g. 500"></div>
+          <div class="field"><label>Renewal Date</label><input id="cf-renewal" type="date"></div>
+          <div class="field"><label>Support Manager (email)</label><input id="cf-support-email" placeholder="support@company.com" type="email"></div>
+          <div class="field">
+            <label>Status</label>
+            <select id="cf-status">
+              <option value="Active">Active</option>
+              <option value="Paused">Paused</option>
+              <option value="Churned">Churned</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeClientModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveClient()">Save Client</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CLIENT DETAIL DRAWER ══ -->
+<div class="detail-overlay" id="client-detail-overlay" onclick="closeClientDetailOnOverlay(event)">
+  <div class="detail-panel" onclick="event.stopPropagation()">
+    <div class="detail-head">
+      <div class="dh-top">
+        <div>
+          <div class="dh-name" id="cdp-name"></div>
+          <div class="dh-biz" id="cdp-sub"></div>
+        </div>
+        <button class="btn-icon" onclick="closeClientDetail()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="dh-badges" id="cdp-progress" style="font-size:12px;color:var(--muted);margin-top:6px;"></div>
+    </div>
+    <div class="detail-body" id="cdp-body"></div>
+    <div class="detail-actions">
+      <button class="btn btn-ghost" onclick="openClientModal(activeClientId)">Edit Client</button>
+      <button class="btn btn-danger" onclick="deleteClient(activeClientId)">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADD TASK MODAL (from the global Tasks page — needs a client picker) ══ -->
+<div class="overlay" id="task-modal-overlay" onclick="closeTaskModalOnOverlay(event)">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:480px;">
+    <div class="modal-head">
+      <h2>Add New Task</h2>
+      <button class="btn-icon" onclick="closeTaskModal()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <div class="form-grid">
+          <div class="field full"><label>Client *</label><select id="tf-client"></select></div>
+          <div class="field full"><label>Task Title *</label><input id="tf-title" placeholder="e.g. Upload July SEO report"></div>
+          <div class="field"><label>Assign To</label><select id="tf-assignee"><option value="">— Unassigned —</option></select></div>
+          <div class="field">
+            <label>Priority</label>
+            <select id="tf-priority">
+              <option value="Low">Low</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="High">High</option>
+              <option value="Urgent">Urgent</option>
+            </select>
+          </div>
+          <div class="field full"><label>Due Date</label><input id="tf-due" type="date"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeTaskModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTaskFromModal()">Add Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+
+<!-- App modules -->
+<script src="js/firebase-init.js"></script>
+<script src="js/notifications.js"></script>
+<script src="js/search.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/team.js"></script>
+<script src="js/core.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/leads.js"></script>
+<script src="js/revenue.js"></script>
+<script src="js/lead-detail.js"></script>
+<script src="js/clients.js"></script>
+<script src="js/files.js"></script>
+<script src="js/tasks.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/lead-modal.js"></script>
+<script src="js/lead-actions.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
