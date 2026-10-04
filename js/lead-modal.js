@@ -1,7 +1,22 @@
 /* ══════════════════════════════════════
    ADD / EDIT MODAL
 ══════════════════════════════════════ */
-function openLeadModal(id = null) {
+function openLeadModal(id = null, triggerElement = null) {
+  if (triggerElement && document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    triggerElement.style.viewTransitionName = 'lead-modal-origin';
+    document.startViewTransition(() => {
+      triggerElement.style.viewTransitionName = '';
+      document.getElementById('modal-title').style.viewTransitionName = 'lead-modal-origin';
+      openLeadModalContent(id);
+    }).finished.finally(() => {
+      document.getElementById('modal-title').style.viewTransitionName = '';
+    });
+    return;
+  }
+  openLeadModalContent(id);
+}
+
+function openLeadModalContent(id = null) {
   editingId = id;
   document.getElementById('modal-title').textContent = id ? 'Edit Lead' : 'Add New Lead';
   document.getElementById('save-lead-submit').textContent = id ? 'Save Changes' : 'Create Lead';

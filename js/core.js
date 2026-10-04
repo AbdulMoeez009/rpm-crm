@@ -84,26 +84,35 @@ function save() {
    NAVIGATION
 ══════════════════════════════════════ */
 function showPage(name, el) {
-  // hide all pages
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + name).classList.add('active');
-  if (el) el.classList.add('active');
-
-  // set topbar title
   const titles = { dashboard:'Dashboard', leads:'All Leads', pipeline:'Pipeline Board', followups:'Follow-Ups', revenue:'Revenue', clients:'Clients', tasks:'Tasks', team:'Team Management', settings:'Settings' };
-  document.getElementById('page-title').textContent = titles[name] || '';
+  const pageOrder = ['dashboard', 'leads', 'pipeline', 'followups', 'clients', 'revenue', 'tasks', 'team', 'settings'];
+  const oldName = document.querySelector('.page.active')?.id.replace('page-', '') || name;
+  const direction = pageOrder.indexOf(name) >= pageOrder.indexOf(oldName) ? 'forward' : 'back';
 
-  // render appropriate view
-  if (name === 'dashboard') renderDashboard();
-  if (name === 'leads') { populateFilterDropdowns(); renderLeadsTable(); }
-  if (name === 'pipeline') renderPipeline();
-  if (name === 'followups') renderFollowups();
-  if (name === 'revenue') renderRevenue();
-  if (name === 'clients') renderClientsTable();
-  if (name === 'tasks') renderGlobalTasksPage();
-  if (name === 'team') renderTeam();
-  closeMobileNav();
+  const updatePage = () => {
+    document.documentElement.dataset.navDirection = direction;
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    if (el) el.classList.add('active');
+    document.getElementById('page-title').textContent = titles[name] || '';
+
+    if (name === 'dashboard') renderDashboard();
+    if (name === 'leads') { populateFilterDropdowns(); renderLeadsTable(); }
+    if (name === 'pipeline') renderPipeline();
+    if (name === 'followups') renderFollowups();
+    if (name === 'revenue') renderRevenue();
+    if (name === 'clients') renderClientsTable();
+    if (name === 'tasks') renderGlobalTasksPage();
+    if (name === 'team') renderTeam();
+    closeMobileNav();
+  };
+
+  if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.startViewTransition(updatePage);
+  } else {
+    updatePage();
+  }
 }
 
 function toggleMobileNav() {
@@ -120,6 +129,75 @@ function closeMobileNav() {
   document.body.classList.remove('mobile-nav-open');
   document.getElementById('mobile-menu-toggle')?.setAttribute('aria-expanded', 'false');
   if (wasOpen && document.activeElement.closest('#sidebar-navigation')) document.getElementById('mobile-menu-toggle')?.focus();
+}
+
+const commandPaletteItems = [
+  { label: 'Dashboard', group: 'Pages', icon: '⌂', run: () => showPage('dashboard', document.querySelector('[onclick^="showPage(\'dashboard\'"]')) },
+  { label: 'All Leads', group: 'Pages', icon: '◉', run: () => showPage('leads', document.getElementById('nav-leads')) },
+  { label: 'Pipeline', group: 'Pages', icon: '▤', run: () => showPage('pipeline', document.querySelector('[onclick^="showPage(\'pipeline\'"]')) },
+  { label: 'Follow-Ups', group: 'Pages', icon: '◷', run: () => showPage('followups', document.getElementById('nav-followups')) },
+  { label: 'Clients', group: 'Pages', icon: '▣', run: () => showPage('clients', document.getElementById('nav-clients')) },
+  { label: 'Revenue', group: 'Pages', icon: '$', run: () => showPage('revenue', document.getElementById('nav-revenue')) },
+  { label: 'Tasks', group: 'Pages', icon: '✓', run: () => showPage('tasks', document.getElementById('nav-tasks')) },
+  { label: 'Team', group: 'Management', icon: '♙', run: () => showPage('team', document.getElementById('nav-team')) },
+  { label: 'Settings', group: 'Management', icon: '⚙', run: () => showPage('settings', document.getElementById('nav-settings')) },
+  { label: 'Add Lead', group: 'Actions', icon: '+', run: () => openLeadModal() },
+  { label: 'Add Client', group: 'Actions', icon: '+', run: () => openClientModal() },
+  { label: 'Add Task', group: 'Actions', icon: '+', run: () => openAddTaskModal() },
+];
+let commandPaletteIndex = 0;
+let commandPaletteReturnFocus = null;
+
+function openCommandPalette() {
+  const overlay = document.getElementById('command-palette-overlay');
+  commandPaletteReturnFocus = document.activeElement;
+  overlay.classList.add('show');
+  document.getElementById('command-palette-input').value = '';
+  commandPaletteIndex = 0;
+  renderCommandPalette();
+  requestAnimationFrame(() => document.getElementById('command-palette-input').focus());
+}
+
+function closeCommandPalette() {
+  document.getElementById('command-palette-overlay').classList.remove('show');
+  if (commandPaletteReturnFocus?.isConnected) commandPaletteReturnFocus.focus();
+}
+
+function closeCommandPaletteOnOverlay(event) {
+  if (event.target === document.getElementById('command-palette-overlay')) closeCommandPalette();
+}
+
+function renderCommandPalette() {
+  const query = document.getElementById('command-palette-input').value.trim().toLowerCase();
+  const matches = commandPaletteItems.filter(item => item.label.toLowerCase().includes(query));
+  commandPaletteIndex = Math.min(commandPaletteIndex, Math.max(0, matches.length - 1));
+  document.getElementById('command-palette-list').innerHTML = matches.length
+    ? matches.map((item, index) => `<button type="button" class="command-option" role="option" aria-selected="${index === commandPaletteIndex}" onclick="runCommandPaletteItem(${commandPaletteItems.indexOf(item)})"><span class="command-option-icon">${item.icon}</span><span>${item.label}</span><small>${item.group}</small></button>`).join('')
+    : '<div class="command-empty">No matching commands</div>';
+}
+
+function runCommandPaletteItem(index) {
+  const item = commandPaletteItems[index];
+  if (!item) return;
+  closeCommandPalette();
+  item.run();
+}
+
+function handleCommandPaletteKeydown(event) {
+  const options = [...document.querySelectorAll('.command-option')];
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    const delta = event.key === 'ArrowDown' ? 1 : -1;
+    commandPaletteIndex = options.length ? (commandPaletteIndex + delta + options.length) % options.length : 0;
+    options.forEach((option, index) => option.setAttribute('aria-selected', String(index === commandPaletteIndex)));
+    options[commandPaletteIndex]?.scrollIntoView({ block: 'nearest' });
+  } else if (event.key === 'Enter') {
+    event.preventDefault();
+    options[commandPaletteIndex]?.click();
+  } else if (event.key === 'Escape') {
+    event.preventDefault();
+    closeCommandPalette();
+  }
 }
 
 const dialogFocusStack = [];
@@ -163,7 +241,13 @@ function changeTablePage(key, page, renderFunction) {
 }
 
 document.addEventListener('keydown', event => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault();
+    openCommandPalette();
+    return;
+  }
   if (event.key === 'Escape') {
+    if (document.getElementById('command-palette-overlay').classList.contains('show')) { closeCommandPalette(); return; }
     if (document.body.classList.contains('mobile-nav-open')) {
       closeMobileNav();
       document.getElementById('mobile-menu-toggle')?.focus();
@@ -190,7 +274,7 @@ document.addEventListener('keydown', event => {
 
   if (event.key === 'Tab') {
     const activeOverlay = [...document.querySelectorAll('.overlay.show, .detail-overlay.show')].at(-1);
-    const dialog = activeOverlay?.querySelector('.modal, .detail-panel');
+    const dialog = activeOverlay?.querySelector('.modal, .detail-panel, .command-palette');
     if (dialog) {
       const focusable = [...dialog.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
         .filter(item => item.getClientRects().length);

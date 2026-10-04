@@ -215,7 +215,7 @@
         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
         Export Excel
       </button>
-      <button class="btn btn-primary" onclick="openLeadModal()">
+      <button class="btn btn-primary" id="topbar-add-lead" onclick="openLeadModal(null, this)">
         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         Add Lead
       </button>
@@ -749,9 +749,17 @@
 </div>
 
 <div class="session-transition" id="session-transition" aria-live="polite" aria-atomic="true">
+  <img class="session-transition-art" src="assets/crm-welcome.svg" alt="" aria-hidden="true">
   <div class="session-transition-mark">RPM</div>
   <div class="session-transition-title">Welcome</div>
   <div class="session-transition-subtitle">Your workspace is ready.</div>
+</div>
+
+<div class="overlay command-palette-overlay" id="command-palette-overlay" onclick="closeCommandPaletteOnOverlay(event)">
+  <div class="command-palette" role="dialog" aria-modal="true" aria-label="Command palette" onclick="event.stopPropagation()">
+    <input class="command-palette-input" id="command-palette-input" type="search" placeholder="Search pages and actions…" autocomplete="off" oninput="renderCommandPalette()" onkeydown="handleCommandPaletteKeydown(event)">
+    <div class="command-palette-list" id="command-palette-list" role="listbox" aria-label="Commands"></div>
+  </div>
 </div>
 
 <!-- Toast -->

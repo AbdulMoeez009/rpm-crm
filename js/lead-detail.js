@@ -1,7 +1,25 @@
 /* ══════════════════════════════════════
    DETAIL PANEL
 ══════════════════════════════════════ */
-function openDetail(id) {
+let activeLeadSharedElement = null;
+
+function openDetail(id, sourceElement = null) {
+  if (document.startViewTransition && sourceElement && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    activeLeadSharedElement = sourceElement.querySelector('.table-avatar, .pc-name, .lead-name') || sourceElement;
+    activeLeadSharedElement.style.viewTransitionName = 'lead-identity';
+    document.startViewTransition(() => {
+      activeLeadSharedElement.style.viewTransitionName = '';
+      document.getElementById('dp-name').style.viewTransitionName = 'lead-identity';
+      openDetailContent(id);
+    }).finished.finally(() => {
+      document.getElementById('dp-name').style.viewTransitionName = '';
+    });
+    return;
+  }
+  openDetailContent(id);
+}
+
+function openDetailContent(id) {
   const l = leads.find(x => x.id === id);
   if (!l) return;
   viewingId = id;
@@ -92,8 +110,25 @@ function openDetail(id) {
 }
 
 function closeDetail() {
-  closeDialog('detail-overlay');
+  const closePanel = () => closeDialog('detail-overlay');
+  if (document.startViewTransition && activeLeadSharedElement?.isConnected && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.getElementById('dp-name').style.viewTransitionName = 'lead-identity';
+    document.startViewTransition(() => {
+      document.getElementById('dp-name').style.viewTransitionName = '';
+      activeLeadSharedElement.style.viewTransitionName = 'lead-identity';
+      closePanel();
+    }).finished.finally(clearLeadSharedElement);
+  } else {
+    closePanel();
+    clearLeadSharedElement();
+  }
   viewingId = null;
+}
+
+function clearLeadSharedElement() {
+  if (activeLeadSharedElement) activeLeadSharedElement.style.viewTransitionName = '';
+  document.getElementById('dp-name').style.viewTransitionName = '';
+  activeLeadSharedElement = null;
 }
 
 function closeDetailOnOverlay(e) {
