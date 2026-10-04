@@ -9,9 +9,9 @@ function renderGlobalSearchResults() {
 
   if (q.length < 2) { wrap.style.display = 'none'; return; }
 
-  const matchedLeads = leads.filter(l =>
-    (l.bizName||'').toLowerCase().includes(q) || (l.ownerName||'').toLowerCase().includes(q) ||
-    (l.phone1||'').toLowerCase().includes(q) || (l.email1||'').toLowerCase().includes(q)
+  const matchedLeads = activeLeads().filter(l =>
+    [l.bizName, l.ownerName, l.phone1, l.phone2, l.email1, l.email2, l.industry, l.city, l.services, l.notes, l.activitySearch]
+      .some(value => String(value || '').toLowerCase().includes(q))
   ).slice(0, 5);
 
   const matchedClients = clients.filter(c =>
@@ -36,7 +36,7 @@ function renderGlobalSearchResults() {
     section('Leads', matchedLeads, l => `
       <div role="button" tabindex="0" data-keyboard-activate onclick="closeGlobalSearch(); openDetail('${l.id}');" style="padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border);">
         <div style="font-weight:600;font-size:13px;">${escapeHtml(l.bizName||'—')}</div>
-        <div style="font-size:11px;color:var(--muted);">${escapeHtml(l.ownerName||'')} · ${escapeHtml(l.phone1||'')}</div>
+        <div style="font-size:11px;color:var(--muted);">${escapeHtml(l.ownerName||'')} · ${escapeHtml(l.phone1||'')} · ${escapeHtml(l.email1||'')}</div>
       </div>
     `) +
     section('Clients', matchedClients, c => `
@@ -71,9 +71,26 @@ function toggleNotifDropdownClosed() {
 document.addEventListener('click', e => {
   const searchWrap = document.getElementById('topbar-search-wrap');
   const notifWrap = document.getElementById('topbar-notif-wrap');
+  const userMenu = document.getElementById('user-menu');
   if (searchWrap && !searchWrap.contains(e.target)) closeGlobalSearch();
   if (notifWrap && !notifWrap.contains(e.target)) toggleNotifDropdownClosed();
+  if (userMenu && !userMenu.parentElement.contains(e.target)) closeUserMenu();
 });
+
+function toggleUserMenu() {
+  const menu = document.getElementById('user-menu');
+  const trigger = document.getElementById('user-menu-trigger');
+  menu.hidden = !menu.hidden;
+  trigger.setAttribute('aria-expanded', String(!menu.hidden));
+}
+
+function closeUserMenu() {
+  const menu = document.getElementById('user-menu');
+  const trigger = document.getElementById('user-menu-trigger');
+  if (!menu || !trigger) return;
+  menu.hidden = true;
+  trigger.setAttribute('aria-expanded', 'false');
+}
 
 // Keep the shared 'revenue' collection in sync with a lead's closed status.
 // Uses the lead's own ID as the revenue doc ID (1:1 mapping) so it's easy to

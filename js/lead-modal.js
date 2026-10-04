@@ -1,9 +1,25 @@
 /* ══════════════════════════════════════
    ADD / EDIT MODAL
 ══════════════════════════════════════ */
-function openLeadModal(id = null) {
+function openLeadModal(id = null, triggerElement = null) {
+  if (triggerElement && document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    triggerElement.style.viewTransitionName = 'lead-modal-origin';
+    document.startViewTransition(() => {
+      triggerElement.style.viewTransitionName = '';
+      document.getElementById('modal-title').style.viewTransitionName = 'lead-modal-origin';
+      openLeadModalContent(id);
+    }).finished.finally(() => {
+      document.getElementById('modal-title').style.viewTransitionName = '';
+    });
+    return;
+  }
+  openLeadModalContent(id);
+}
+
+function openLeadModalContent(id = null) {
   editingId = id;
   document.getElementById('modal-title').textContent = id ? 'Edit Lead' : 'Add New Lead';
+  document.getElementById('save-lead-submit').textContent = id ? 'Save Changes' : 'Create Lead';
 
   // Rebuild the Closer / Support Manager dropdowns from the live roster every
   // time the modal opens, so newly-approved team members show up right away.
@@ -51,11 +67,11 @@ function openLeadModal(id = null) {
     document.getElementById('f-stage').value = 'New Lead';
   }
 
-  document.getElementById('lead-modal-overlay').classList.add('show');
+  openDialog('lead-modal-overlay');
 }
 
 function closeLeadModal() {
-  document.getElementById('lead-modal-overlay').classList.remove('show');
+  closeDialog('lead-modal-overlay');
   editingId = null;
 }
 
@@ -136,8 +152,15 @@ async function saveLead() {
     lastContact: document.getElementById('f-last-contact').value,
   };
 
-  try {
-    if (editingId) {
+  const duplicates = findPotentialLeadDuplicates(data, editingId);
+  if (duplicates.length) {
+    const examples = duplicates.slice(0, 3).map(lead => lead.bizName || lead.phone1).join(', ');
+    if (!confirm(`This phone or email already appears on ${duplicates.length} lead${duplicates.length === 1 ? '' : 's'}: ${examples}. Create/save this record anyway?`)) return;
+  }
+
+  const saved = await withButtonLoading('save-lead-submit', editingId ? 'Saving…' : 'Creating…', async () => {
+    try {
+      if (editingId) {
       // update existing lead in Firestore
       const existing = leads.find(l => l.id === editingId);
       // Revenue tracking: stamp closedDate the moment it becomes Closed Won,
@@ -147,7 +170,21 @@ async function saveLead() {
       } else if (data.stage !== 'Closed Won') {
         data.closedDate = '';
       }
-      await leadsCol.doc(editingId).update(data);
+      const stageChanged = Boolean(existing && existing.stage !== data.stage);
+      if (stageChanged) {
+        const stageText = `Stage changed from ${existing.stage || 'New Lead'} to ${data.stage}`;
+        data.activitySearch = `${existing.activitySearch || ''}\n${stageText}`.slice(-4000);
+        const activityRef = leadsCol.doc(editingId).collection('activity').doc();
+        const batch = db.batch();
+        batch.update(leadsCol.doc(editingId), data);
+        batch.set(activityRef, {
+          type: 'stage', text: stageText, fromStage: existing.stage || 'New Lead', toStage: data.stage,
+          authorUid: currentUid, authorEmail: currentUserEmail, createdAt: new Date().toISOString(),
+        });
+        await batch.commit();
+      } else {
+        await leadsCol.doc(editingId).update(data);
+      }
       const mergedExisting = { ...existing, ...data };
       await syncRevenueEntry(editingId, mergedExisting);
       await syncClientFromLead(editingId, mergedExisting);
@@ -169,12 +206,16 @@ async function saveLead() {
       if (data.closerUid) {
         notifyUser(data.closerUid, 'lead_assigned', `New lead assigned to you: ${data.bizName}`, { leadId: ref.id });
       }
-      showToast('Lead added!', 'success');
+        showToast('Lead added successfully', 'success');
+      }
+      return true;
+    } catch (e) {
+      showToast('Unable to save lead. Please try again.', 'error');
+      console.error(e);
+      return false;
     }
-  } catch (e) {
-    showToast('❌ Save fail: ' + e.message, 'error');
-    return;
-  }
+  });
+  if (!saved) return;
 
   closeLeadModal(); // the Firestore listener will refresh the tables automatically
 }

@@ -20,12 +20,20 @@ function resetPasswordVisibility() {
   });
 }
 
+function animateAuthView(viewId) {
+  const view = document.getElementById(viewId);
+  view.classList.remove('auth-view-enter');
+  void view.offsetWidth;
+  view.classList.add('auth-view-enter');
+}
+
 function showSignupView() {
   resetPasswordVisibility();
   document.getElementById('auth-login-view').style.display = 'none';
   document.getElementById('auth-pending-view').style.display = 'none';
   document.getElementById('auth-forgot-view').style.display = 'none';
   document.getElementById('auth-signup-view').style.display = 'block';
+  animateAuthView('auth-signup-view');
   document.getElementById('auth-error').style.display = 'none';
 }
 
@@ -35,6 +43,7 @@ function showLoginView() {
   document.getElementById('auth-pending-view').style.display = 'none';
   document.getElementById('auth-forgot-view').style.display = 'none';
   document.getElementById('auth-login-view').style.display = 'block';
+  animateAuthView('auth-login-view');
   document.getElementById('signup-error').style.display = 'none';
 }
 
@@ -44,6 +53,7 @@ function showForgotView() {
   document.getElementById('auth-signup-view').style.display = 'none';
   document.getElementById('auth-pending-view').style.display = 'none';
   document.getElementById('auth-forgot-view').style.display = 'block';
+  animateAuthView('auth-forgot-view');
   document.getElementById('forgot-error').style.display = 'none';
   document.getElementById('forgot-success').style.display = 'none';
 }
@@ -60,14 +70,16 @@ async function doForgotPassword() {
     errEl.style.display = 'block';
     return;
   }
-  try {
-    await auth.sendPasswordResetEmail(email);
-    okEl.textContent = '✓ Reset link sent! Check your inbox (and spam folder).';
-    okEl.style.display = 'block';
-  } catch (e) {
-    errEl.textContent = '❌ ' + (e.message || 'Could not send reset email');
-    errEl.style.display = 'block';
-  }
+  await withButtonLoading('auth-forgot-submit', 'Sending…', async () => {
+    try {
+      await auth.sendPasswordResetEmail(email);
+      okEl.textContent = '✓ Reset link sent! Check your inbox (and spam folder).';
+      okEl.style.display = 'block';
+    } catch (e) {
+      errEl.textContent = '❌ ' + (e.message || 'Could not send reset email');
+      errEl.style.display = 'block';
+    }
+  });
 }
 
 function showPendingView() {
@@ -76,6 +88,7 @@ function showPendingView() {
   document.getElementById('auth-signup-view').style.display = 'none';
   document.getElementById('auth-forgot-view').style.display = 'none';
   document.getElementById('auth-pending-view').style.display = 'block';
+  animateAuthView('auth-pending-view');
 }
 
 // While a signup is in progress, the global auth.onAuthStateChanged listener
@@ -110,8 +123,9 @@ async function doSignup() {
     return;
   }
 
-  suppressAuthHandler = true; // pause the global listener for the duration of signup
-  try {
+  await withButtonLoading('auth-signup-submit', 'Creating account…', async () => {
+    suppressAuthHandler = true;
+    try {
     // This automatically creates the auth account. We then create a matching
     // profile doc in Firestore with approved:false and NO roles yet — the
     // admin assigns role(s) (Admin/Dialer/Closer/Support Manager) by name
@@ -130,15 +144,14 @@ async function doSignup() {
     document.getElementById('signup-password').value = '';
     document.getElementById('signup-confirm').value = '';
     showPendingView();
-  } catch (e) {
-    errEl.textContent = '❌ ' + (e.message || 'Signup failed');
-    errEl.style.display = 'block';
-    // If account creation partly succeeded but the profile write failed,
-    // make sure we don't leave a half-signed-in session hanging around.
-    if (auth.currentUser) { try { await auth.signOut(); } catch (_) {} }
-  } finally {
-    suppressAuthHandler = false; // resume normal auth handling
-  }
+    } catch (e) {
+      errEl.textContent = '❌ ' + (e.message || 'Signup failed');
+      errEl.style.display = 'block';
+      if (auth.currentUser) { try { await auth.signOut(); } catch (_) {} }
+    } finally {
+      suppressAuthHandler = false;
+    }
+  });
 }
 
 async function doLogin() {
@@ -151,15 +164,18 @@ async function doLogin() {
     errEl.style.display = 'block';
     return;
   }
-  try {
-    await auth.signInWithEmailAndPassword(email, password);
-  } catch (e) {
-    errEl.textContent = '❌ Login failed: ' + (e.message || 'incorrect email/password');
-    errEl.style.display = 'block';
-  }
+  await withButtonLoading('auth-login-submit', 'Signing in…', async () => {
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+    } catch (e) {
+      errEl.textContent = '❌ Login failed: ' + (e.message || 'incorrect email/password');
+      errEl.style.display = 'block';
+    }
+  });
 }
 
 function doLogout() {
+  showSessionTransition(`See you, ${currentUserName || 'there'}`, 'You are safely signed out.');
   if (unsubscribeLeads) { unsubscribeLeads(); unsubscribeLeads = null; }
   if (unsubscribeTeam) { unsubscribeTeam(); unsubscribeTeam = null; }
   if (unsubscribeProfile) { unsubscribeProfile(); unsubscribeProfile = null; }
@@ -172,6 +188,8 @@ function doLogout() {
 
 let currentUid = null;
 let currentUserEmail = null;
+let currentUserName = '';
+let welcomedUid = null;
 let isAdmin = false;
 let unsubscribeProfile = null;
 
@@ -238,6 +256,7 @@ auth.onAuthStateChanged(user => {
         const wasAdmin = isAdmin;
         currentUid = user.uid;
         currentUserEmail = user.email;
+        currentUserName = profile.name || user.displayName || user.email.split('@')[0];
         currentRoles = rolesOf(profile);
         isAdmin = currentRoles.includes('admin');
         isDialer = currentRoles.includes('dialer');
@@ -246,8 +265,21 @@ auth.onAuthStateChanged(user => {
 
         document.getElementById('auth-overlay').classList.remove('show');
         document.getElementById('app-root').style.display = 'flex';
-        document.getElementById('topbar-user-email').textContent = user.email + (isAdmin ? ' (Admin)' : '');
+        document.getElementById('topbar-user-email').textContent = user.email;
+        document.getElementById('topbar-user-shortname').textContent = currentUserName.split(/\s+/)[0] || 'Account';
+        document.getElementById('topbar-user-avatar').textContent = currentUserName.trim().charAt(0).toUpperCase() || 'U';
+        document.getElementById('topbar-user-role').textContent = isAdmin ? 'Administrator' : (currentRoles.map(role => ROLE_LABELS[role]).join(', ') || 'Team member');
+        document.getElementById('sidebar-user-name').textContent = currentUserName;
+        document.getElementById('sidebar-user-role').textContent = isAdmin ? 'Administrator' : (currentRoles.map(role => ROLE_LABELS[role]).join(', ') || 'Team member');
+        document.getElementById('sidebar-avatar').textContent = currentUserName.trim().charAt(0).toUpperCase() || 'U';
+        document.getElementById('settings-account-name').textContent = currentUserName;
+        document.getElementById('settings-account-email').textContent = user.email;
+        document.getElementById('settings-account-role').textContent = isAdmin ? 'Administrator' : (currentRoles.map(role => ROLE_LABELS[role]).join(', ') || 'Team member');
         document.getElementById('nav-team').style.display = isAdmin ? '' : 'none';
+        if (welcomedUid !== user.uid) {
+          welcomedUid = user.uid;
+          showSessionTransition(`Welcome, ${currentUserName}`, 'Your RPM CRM workspace is ready.');
+        }
 
         // Start (or restart, if role assignment changed) the correctly-scoped
         // leads feed — which leads someone can see depends on Dialer/Closer,
@@ -276,6 +308,8 @@ auth.onAuthStateChanged(user => {
   } else {
     currentUid = null;
     currentUserEmail = null;
+    currentUserName = '';
+    welcomedUid = null;
     isAdmin = false;
     isDialer = false; isCloser = false; isSupportManager = false; currentRoles = []; prevRoleSig = null;
     renewalCheckDone = false;

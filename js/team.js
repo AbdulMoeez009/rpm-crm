@@ -16,7 +16,7 @@ function startTeamListener() {
       const activePage = document.querySelector('.page.active');
       if (activePage && activePage.id === 'page-team') renderTeam();
     },
-    err => console.error(err)
+    scheduleLeadsRetry
   );
 }
 

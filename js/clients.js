@@ -41,7 +41,7 @@ function startClientsListener() {
         if (activeClientId) refreshClientDetailIfOpen();
         checkRenewalNotifications();
       },
-      err => { console.error(err); showToast('❌ Clients sync error: ' + err.message, 'error'); }
+      scheduleLeadsRetry
     );
     return;
   }
@@ -55,7 +55,7 @@ function startClientsListener() {
     if (activeClientId) refreshClientDetailIfOpen();
     checkRenewalNotifications();
   };
-  const onErr = err => { console.error(err); showToast('❌ Clients sync error: ' + err.message, 'error'); };
+  const onErr = scheduleLeadsRetry;
 
   const unsub1 = clientsCol.where('supportUid', '==', currentUid).onSnapshot(
     snap => { bySupport = {}; snap.docs.forEach(d => { bySupport[d.id] = { id: d.id, ...d.data() }; }); rebuild(); }, onErr);
@@ -120,23 +120,33 @@ function renderClientsTable() {
   const tbody = document.getElementById('clients-tbody');
   const emptyEl = document.getElementById('clients-empty');
   if (!tbody) return;
+  const visibleRows = paginateRows('clients', rows, 'clients-pagination', 'renderClientsTable');
 
   if (rows.length === 0) {
     tbody.innerHTML = '';
-    if (emptyEl) emptyEl.style.display = 'flex';
+    if (emptyEl) {
+      emptyEl.style.display = 'flex';
+      emptyEl.querySelector('p').textContent = clients.length ? 'No clients match these filters' : 'No clients yet';
+      emptyEl.querySelector('.empty-description').textContent = clients.length
+        ? 'Try changing your search or filters to see more results.'
+        : 'Add a client or close a lead as won to start managing delivery.';
+      emptyEl.querySelector('.empty-action').style.display = clients.length ? 'none' : 'inline-flex';
+    }
     return;
   }
   if (emptyEl) emptyEl.style.display = 'none';
 
-  const statusClass = { Active: 'badge-hot', Paused: 'badge-warm', Churned: 'badge-cold' };
+  const statusClass = { Active: 'badge-green', Paused: 'badge-warm', Churned: 'badge-cold' };
 
-  tbody.innerHTML = rows.map(c => {
+  tbody.innerHTML = visibleRows.map(c => {
     const prog = onboardingProgress(c);
     return `
       <tr>
         <td>
-          <div style="font-weight:700;">${escapeHtml(c.businessName || '—')}</div>
-          <div style="font-size:12px;color:var(--muted);">${escapeHtml(c.ownerName || '')}</div>
+          <div class="table-person">
+            <span class="table-avatar">${escapeHtml((c.businessName || '?').trim().charAt(0).toUpperCase())}</span>
+            <div><div class="lead-name">${escapeHtml(c.businessName || '—')}</div><div class="lead-biz">${escapeHtml(c.ownerName || '')}</div></div>
+          </div>
         </td>
         <td>${escapeHtml(c.servicePackage || '—')}</td>
         <td>${c.monthlyFee ? '$' + c.monthlyFee : '—'}</td>
@@ -192,11 +202,12 @@ function openClientModal(id = null) {
     document.getElementById('cf-status').value = 'Active';
   }
 
-  document.getElementById('client-modal-overlay').classList.add('show');
+  document.getElementById('save-client-submit').textContent = id ? 'Save Changes' : 'Create Client';
+  openDialog('client-modal-overlay');
 }
 
 function closeClientModal() {
-  document.getElementById('client-modal-overlay').classList.remove('show');
+  closeDialog('client-modal-overlay');
   editingClientId = null;
 }
 
@@ -227,11 +238,12 @@ async function saveClient() {
     status: document.getElementById('cf-status').value,
   };
 
-  try {
-    if (editingClientId) {
-      await clientsCol.doc(editingClientId).update(data);
-      showToast('Client updated!', 'success');
-    } else {
+  const saved = await withButtonLoading('save-client-submit', editingClientId ? 'Saving…' : 'Creating…', async () => {
+    try {
+      if (editingClientId) {
+        await clientsCol.doc(editingClientId).update(data);
+        showToast('Client updated successfully', 'success');
+      } else {
       // Manually-added client — no source lead, so give it its own onboarding
       // checklist starting fresh and tag it 'manual' for reporting later.
       data.source = 'manual';
@@ -239,13 +251,17 @@ async function saveClient() {
       data.ownerUid = currentUid;
       data.createdAt = today();
       data.onboarding = ONBOARDING_ITEMS.reduce((acc, i) => ({ ...acc, [i.key]: false }), {});
-      await clientsCol.add(data);
-      showToast('Client added!', 'success');
+        await clientsCol.add(data);
+        showToast('Client created successfully', 'success');
+      }
+      return true;
+    } catch (e) {
+      showToast('Unable to save client. Please try again.', 'error');
+      console.error(e);
+      return false;
     }
-  } catch (e) {
-    showToast('❌ Save fail: ' + e.message, 'error');
-    return;
-  }
+  });
+  if (!saved) return;
   closeClientModal();
 }
 
@@ -268,11 +284,11 @@ function openClientDetail(id) {
   renderClientDetail();
   startTasksListenerForClient(id);
   startFilesListenerForClient(id);
-  document.getElementById('client-detail-overlay').classList.add('show');
+  openDialog('client-detail-overlay');
 }
 
 function closeClientDetail() {
-  document.getElementById('client-detail-overlay').classList.remove('show');
+  closeDialog('client-detail-overlay');
   activeClientId = null;
   if (unsubscribeTasks) { unsubscribeTasks(); unsubscribeTasks = null; }
   clientTasks = [];

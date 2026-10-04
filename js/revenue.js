@@ -17,7 +17,7 @@ function startRevenueListener() {
       if (activePage && activePage.id === 'page-revenue') renderRevenue();
       if (activePage && activePage.id === 'page-dashboard') renderDashboard();
     },
-    err => console.error(err)
+    scheduleLeadsRetry
   );
 }
 
@@ -96,14 +96,16 @@ function renderRevenue() {
     isAdmin ? 'Closed Deals — Whole Team (This Month)' : 'Your Closed Deals (This Month)';
 
   if (rowsToShow.length === 0) {
+    paginateRows('revenue', [], 'revenue-pagination', 'renderRevenue');
     tableWrap.innerHTML = `<div class="empty-state"><p>No deals closed this month.</p></div>`;
   } else {
     const sorted = [...rowsToShow].sort((a, b) => (b.closedDate || '').localeCompare(a.closedDate || ''));
+    const visibleRows = paginateRows('revenue', sorted, 'revenue-pagination', 'renderRevenue');
     tableWrap.innerHTML = `
       <table><thead><tr>
         <th>Business</th>${isAdmin ? '<th>Closed By</th>' : ''}<th>Dialer</th><th>Closer</th><th>Closed Date</th><th>Price</th>
       </tr></thead><tbody>
-        ${sorted.map(e => `
+        ${visibleRows.map(e => `
           <tr>
             <td><div class="lead-name">${e.bizName || '—'}</div></td>
             ${isAdmin ? `<td>${e.ownerEmail || '—'}</td>` : ''}

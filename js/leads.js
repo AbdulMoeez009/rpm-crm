@@ -3,8 +3,9 @@
 ══════════════════════════════════════ */
 function populateFilterDropdowns() {
   // Build unique city and industry options from data
-  const cities = [...new Set(leads.map(l => l.city).filter(Boolean))].sort();
-  const industries = [...new Set(leads.map(l => l.industry).filter(Boolean))].sort();
+  const currentLeads = activeLeads();
+  const cities = [...new Set(currentLeads.map(l => l.city).filter(Boolean))].sort();
+  const industries = [...new Set(currentLeads.map(l => l.industry).filter(Boolean))].sort();
 
   const citySelect = document.getElementById('filter-city');
   const curCity = citySelect.value;
@@ -67,6 +68,7 @@ function updateSortArrows() {
 
 function renderLeadsTable() {
   const q = document.getElementById('search-input').value.toLowerCase();
+  const showArchived = document.getElementById('lead-record-view')?.value === 'archived';
   const fs = document.getElementById('filter-status').value;
   const fst = document.getElementById('filter-stage').value;
   const fc = document.getElementById('filter-city').value;
@@ -74,7 +76,8 @@ function renderLeadsTable() {
 
   // Apply all filters
   let filtered = leads.filter(l => {
-    const matchQ = !q || [l.ownerName, l.bizName, l.phone1, l.phone2, l.email1, l.email2, l.dialer, l.city, l.industry]
+    if (Boolean(l.archivedAt) !== showArchived) return false;
+    const matchQ = !q || [l.ownerName, l.bizName, l.phone1, l.phone2, l.email1, l.email2, l.dialer, l.city, l.industry, l.services, l.notes, l.activitySearch]
       .some(v => (v||'').toLowerCase().includes(q));
     const matchS = !fs || l.status === fs;
     const matchSt = !fst || l.stage === fst;
@@ -87,33 +90,43 @@ function renderLeadsTable() {
 
   const tbody = document.getElementById('leads-tbody');
   const empty = document.getElementById('leads-empty');
+  const visibleRows = paginateRows('leads', filtered, 'leads-pagination', 'renderLeadsTable');
 
   if (filtered.length === 0) {
     tbody.innerHTML = '';
-    empty.style.display = 'block';
+    empty.style.display = 'flex';
+    const noLeads = leads.filter(lead => Boolean(lead.archivedAt) === showArchived).length === 0;
+    document.getElementById('leads-empty-title').textContent = showArchived ? (noLeads ? 'No archived leads' : 'No archived leads match these filters') : (noLeads ? 'No leads yet' : 'No leads match these filters');
+    document.getElementById('leads-empty-description').textContent = showArchived
+      ? 'Archived leads stay here with their history and can be restored at any time.'
+      : noLeads
+      ? 'Start building your pipeline by adding your first lead.'
+      : 'Try changing your search or filters to see more results.';
+    document.getElementById('leads-empty-action').style.display = !showArchived && noLeads ? 'inline-flex' : 'none';
   } else {
     empty.style.display = 'none';
-    tbody.innerHTML = filtered.map(l => `
+    tbody.innerHTML = visibleRows.map(l => `
       <tr class="${l.status==='Hot'?'hot-row':''}">
         <td>
-          <div class="lead-name">${l.status==='Hot'?'🔥 ':''}${l.ownerName||'—'}</div>
-          <div class="lead-biz">${l.bizName}${l.city?' · '+l.city:''}</div>
+          <div class="table-person">
+            <span class="table-avatar">${escapeHtml((l.ownerName || l.bizName || '?').trim().charAt(0).toUpperCase())}</span>
+            <div><div class="lead-name">${l.status==='Hot'?'🔥 ':''}${escapeHtml(l.ownerName||'—')}</div><div class="lead-biz">${escapeHtml(l.bizName)}${l.city?' · '+escapeHtml(l.city):''}</div></div>
+          </div>
         </td>
-        <td>${l.dialer||'—'}</td>
+        <td>${escapeHtml(l.dialer||'—')}</td>
         <td>
-          ${l.phone1 ? `<div>${l.phone1}</div>` : '—'}
-          ${l.phone2 ? `<div style="color:var(--muted);font-size:12px">${l.phone2}</div>` : ''}
+          ${l.phone1 ? `<div>${escapeHtml(l.phone1)}</div>` : '—'}
+          ${l.phone2 ? `<div style="color:var(--muted);font-size:12px">${escapeHtml(l.phone2)}</div>` : ''}
         </td>
-        <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.services||'—'}</td>
+        <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(l.services||'—')}</td>
         <td class="lead-price">${fmtPrice(l.price)}</td>
         <td>${statusBadge(l.status)}</td>
         <td>${stageBadge(l.stage)}</td>
         <td>${followupHtml(l.followupDate)}</td>
         <td>
           <div class="action-btns">
-            <button class="btn btn-sm btn-primary" onclick="openDetail('${l.id}')">View</button>
-            <button class="btn btn-sm btn-ghost" onclick="openLeadModal('${l.id}')">Edit</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteLead('${l.id}')">Del</button>
+            <button class="btn btn-sm btn-primary" onclick="openDetail('${l.id}', this.closest('tr').querySelector('.table-person'))">View</button>
+            ${showArchived ? `<button class="btn btn-sm btn-ghost" onclick="restoreLead('${l.id}')">Restore</button>` : `<button class="btn btn-sm btn-ghost" onclick="openLeadModal('${l.id}')">Edit</button><button class="btn btn-sm btn-danger" onclick="archiveLead('${l.id}')">Archive</button>`}
           </div>
         </td>
       </tr>
@@ -127,14 +140,14 @@ function renderLeadsTable() {
 function renderPipeline() {
   const board = document.getElementById('pipeline-board');
   board.innerHTML = STAGES.map(stage => {
-    const cols = leads.filter(l => l.stage === stage);
+    const cols = activeLeads().filter(l => l.stage === stage);
     return `<div class="pipeline-col ${COL_CLASS[stage]}" style="width:220px;">
       <div class="pipeline-header">${stage} <span class="pipeline-count">${cols.length}</span></div>
       <div class="pipeline-cards">
         ${cols.map(l => `
-          <div class="pipeline-card" role="button" tabindex="0" data-keyboard-activate aria-label="Open ${l.ownerName || l.bizName}" onclick="openDetail('${l.id}')">
-            <div class="pc-name">${l.status==='Hot'?'🔥 ':''}${l.ownerName||l.bizName}</div>
-            <div class="pc-biz">${l.bizName}</div>
+          <div class="pipeline-card" role="button" tabindex="0" data-keyboard-activate aria-label="Open ${escapeHtml(l.ownerName || l.bizName)}" onclick="openDetail('${l.id}', this)">
+            <div class="pc-name">${l.status==='Hot'?'🔥 ':''}${escapeHtml(l.ownerName||l.bizName)}</div>
+            <div class="pc-biz">${escapeHtml(l.bizName)}</div>
             <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
               ${statusBadge(l.status)}
               ${l.price ? `<span style="font-size:11px;font-weight:700;color:var(--green)">${fmtPrice(l.price)}</span>` : ''}
@@ -156,30 +169,31 @@ function renderFollowups() {
   document.getElementById('followup-strip-wrap2').innerHTML = followupStripHtml();
 
   // all leads that have a follow-up date, sorted by urgency
-  const withDate = leads
+  const withDate = activeLeads()
     .filter(l => l.followupDate)
     .sort((a, b) => new Date(a.followupDate) - new Date(b.followupDate));
 
   const tbody = document.getElementById('followups-tbody');
   const empty = document.getElementById('followups-empty');
+  const visibleRows = paginateRows('followups', withDate, 'followups-pagination', 'renderFollowups');
 
   if (withDate.length === 0) {
     tbody.innerHTML = '';
-    empty.style.display = 'block';
+    empty.style.display = 'flex';
   } else {
     empty.style.display = 'none';
-    tbody.innerHTML = withDate.map(l => `
+    tbody.innerHTML = visibleRows.map(l => `
       <tr class="${l.status==='Hot'?'hot-row':''}">
-        <td><div class="lead-name">${l.status==='Hot'?'🔥 ':''}${l.ownerName||'—'}</div></td>
-        <td>${l.bizName}</td>
-        <td>${l.dialer||'—'}</td>
-        <td>${l.phone1||'—'}</td>
+        <td><div class="table-person"><span class="table-avatar">${escapeHtml((l.ownerName || l.bizName || '?').trim().charAt(0).toUpperCase())}</span><div class="lead-name">${l.status==='Hot'?'🔥 ':''}${escapeHtml(l.ownerName||'—')}</div></div></td>
+        <td>${escapeHtml(l.bizName)}</td>
+        <td>${escapeHtml(l.dialer||'—')}</td>
+        <td>${escapeHtml(l.phone1||'—')}</td>
         <td>${followupHtml(l.followupDate)}</td>
         <td>${l.lastContact ? fmtDate(l.lastContact) : '—'}</td>
         <td>${statusBadge(l.status)}</td>
         <td>
           <div class="action-btns">
-            <button class="btn btn-sm btn-primary" onclick="openDetail('${l.id}')">View</button>
+            <button class="btn btn-sm btn-primary" onclick="openDetail('${l.id}', this.closest('tr').querySelector('.table-person'))">View</button>
             <button class="btn btn-sm btn-ghost" onclick="openLeadModal('${l.id}')">Edit</button>
           </div>
         </td>
