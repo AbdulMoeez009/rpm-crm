@@ -1,7 +1,27 @@
 /* ══════════════════════════════════════
    AUTH
 ══════════════════════════════════════ */
+function togglePasswordVisibility(inputId, button) {
+  const input = document.getElementById(inputId);
+  const isVisible = input.type === 'text';
+  input.type = isVisible ? 'password' : 'text';
+  button.setAttribute('aria-pressed', String(!isVisible));
+  button.setAttribute('aria-label', isVisible ? 'Show password' : 'Hide password');
+  button.classList.toggle('is-visible', !isVisible);
+}
+
+function resetPasswordVisibility() {
+  document.querySelectorAll('.password-toggle').forEach(button => {
+    const input = button.parentElement.querySelector('input');
+    input.type = 'password';
+    button.setAttribute('aria-pressed', 'false');
+    button.setAttribute('aria-label', 'Show password');
+    button.classList.remove('is-visible');
+  });
+}
+
 function showSignupView() {
+  resetPasswordVisibility();
   document.getElementById('auth-login-view').style.display = 'none';
   document.getElementById('auth-pending-view').style.display = 'none';
   document.getElementById('auth-forgot-view').style.display = 'none';
@@ -10,6 +30,7 @@ function showSignupView() {
 }
 
 function showLoginView() {
+  resetPasswordVisibility();
   document.getElementById('auth-signup-view').style.display = 'none';
   document.getElementById('auth-pending-view').style.display = 'none';
   document.getElementById('auth-forgot-view').style.display = 'none';
@@ -18,6 +39,7 @@ function showLoginView() {
 }
 
 function showForgotView() {
+  resetPasswordVisibility();
   document.getElementById('auth-login-view').style.display = 'none';
   document.getElementById('auth-signup-view').style.display = 'none';
   document.getElementById('auth-pending-view').style.display = 'none';
@@ -49,6 +71,7 @@ async function doForgotPassword() {
 }
 
 function showPendingView() {
+  resetPasswordVisibility();
   document.getElementById('auth-login-view').style.display = 'none';
   document.getElementById('auth-signup-view').style.display = 'none';
   document.getElementById('auth-forgot-view').style.display = 'none';

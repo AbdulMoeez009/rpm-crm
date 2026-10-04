@@ -105,6 +105,28 @@ function showPage(name, el) {
   if (name === 'team') renderTeam();
 }
 
+document.addEventListener('keydown', event => {
+  const customControl = event.target.closest('[data-keyboard-activate]');
+  if (customControl && (event.key === 'Enter' || event.key === ' ')) {
+    event.preventDefault();
+    customControl.click();
+    return;
+  }
+
+  const currentNavItem = event.target.closest('.nav-item');
+  if (!currentNavItem) return;
+  const direction = ['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 :
+    ['ArrowLeft', 'ArrowUp'].includes(event.key) ? -1 : 0;
+  if (!direction) return;
+
+  const navItems = [...document.querySelectorAll('.nav-item')].filter(item => item.getClientRects().length);
+  const nextIndex = navItems.indexOf(currentNavItem) + direction;
+  if (nextIndex >= 0 && nextIndex < navItems.length) {
+    event.preventDefault();
+    navItems[nextIndex].focus();
+  }
+});
+
 /* ══════════════════════════════════════
    HELPERS
 ══════════════════════════════════════ */
@@ -192,9 +214,9 @@ function followupStripHtml() {
   const due = leads.filter(l => l.followupDate && daysUntil(l.followupDate) <= 0);
   if (due.length === 0) return '';
   const chips = due.map(l =>
-    `<span class="followup-chip" onclick="openDetail('${l.id}')">
+    `<button type="button" class="followup-chip" onclick="openDetail('${l.id}')">
       ${l.status === 'Hot' ? '🔥 ' : ''}${l.ownerName || l.bizName}
-    </span>`
+    </button>`
   ).join('');
   return `<div class="followup-strip">
     <span class="fs-title">⏰ ${due.length} Follow-Up${due.length>1?'s':''} Due Today:</span>

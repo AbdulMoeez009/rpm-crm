@@ -50,7 +50,7 @@ function renderNotifDropdown() {
     </div>
     <div style="max-height:360px;overflow-y:auto;">
       ${notifications.slice(0, 30).map(n => `
-        <div onclick="handleNotifClick('${n.id}', '${n.type}', '${n.clientId || ''}', '${n.leadId || ''}')"
+        <div role="button" tabindex="0" data-keyboard-activate onclick="handleNotifClick('${n.id}', '${n.type}', '${n.clientId || ''}', '${n.leadId || ''}')"
           style="display:flex;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer;${n.read ? '' : 'background:var(--bg);'}">
           <span style="font-size:16px;">${NOTIF_ICON[n.type] || '🔔'}</span>
           <div style="flex:1;min-width:0;">
