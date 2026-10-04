@@ -30,8 +30,12 @@ function showSessionTransition(title, subtitle) {
   screen.querySelector('.session-transition-title').textContent = title;
   screen.querySelector('.session-transition-subtitle').textContent = subtitle;
   screen.classList.add('show');
+  document.documentElement.classList.add('session-transition-active');
   clearTimeout(showSessionTransition.timer);
-  showSessionTransition.timer = setTimeout(() => screen.classList.remove('show'), 1500);
+  showSessionTransition.timer = setTimeout(() => {
+    screen.classList.remove('show');
+    document.documentElement.classList.remove('session-transition-active');
+  }, 1500);
 }
 
 async function withButtonLoading(buttonId, loadingLabel, operation) {
