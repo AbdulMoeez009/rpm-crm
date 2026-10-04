@@ -14,13 +14,13 @@
 <body>
 
 <!-- ══ LOGIN SCREEN (shown until the user signs in) ══ -->
-<div class="overlay show" id="auth-overlay" style="z-index:1000;background:linear-gradient(135deg,#111827,#1f2937);">
-  <div class="modal" style="width:380px;margin-top:12vh;" onclick="event.stopPropagation()">
-    <div class="modal-head" style="justify-content:center;flex-direction:column;gap:8px;text-align:center;padding-top:28px;">
-      <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#2563eb 0%,#7c3aed 60%,#ec4899 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(124,58,237,0.45);margin-bottom:6px;">
+<div class="overlay show auth-overlay" id="auth-overlay">
+  <div class="modal auth-card" role="dialog" aria-modal="true" aria-labelledby="auth-title" onclick="event.stopPropagation()">
+    <div class="modal-head auth-head">
+      <div class="auth-mark">
         <span style="font-size:16px;font-weight:900;color:#fff;">RPM</span>
       </div>
-      <h2>RPM CRM Login</h2>
+      <h2 id="auth-title">RPM CRM Login</h2>
     </div>
     <div class="modal-body">
       <div id="auth-login-view">
@@ -42,7 +42,7 @@
           <a href="#" onclick="showForgotView();return false;" style="font-size:11px;color:var(--muted);text-decoration:none;">Forgot password?</a>
         </div>
         <div id="auth-error" style="color:var(--hot);font-size:12px;margin:8px 0;display:none;"></div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:10px;" onclick="doLogin()">Login</button>
+        <button class="btn btn-primary" id="auth-login-submit" style="width:100%;justify-content:center;margin-top:10px;" onclick="doLogin()">Login</button>
         <div style="font-size:12px;color:var(--muted);margin-top:14px;text-align:center;">
           Don't have an account? <a href="#" onclick="showSignupView();return false;" style="color:var(--accent);font-weight:600;text-decoration:none;">Sign up</a>
         </div>
@@ -58,7 +58,7 @@
         </div>
         <div id="forgot-error" style="color:var(--hot);font-size:12px;margin:8px 0;display:none;"></div>
         <div id="forgot-success" style="color:var(--green);font-size:12px;margin:8px 0;display:none;"></div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:10px;" onclick="doForgotPassword()">Send Reset Link</button>
+        <button class="btn btn-primary" id="auth-forgot-submit" style="width:100%;justify-content:center;margin-top:10px;" onclick="doForgotPassword()">Send Reset Link</button>
         <div style="font-size:12px;color:var(--muted);margin-top:14px;text-align:center;">
           <a href="#" onclick="showLoginView();return false;" style="color:var(--accent);font-weight:600;text-decoration:none;">← Back to Login</a>
         </div>
@@ -94,7 +94,7 @@
           </div>
         </div>
         <div id="signup-error" style="color:var(--hot);font-size:12px;margin:8px 0;display:none;"></div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:10px;" onclick="doSignup()">Sign Up</button>
+        <button class="btn btn-primary" id="auth-signup-submit" style="width:100%;justify-content:center;margin-top:10px;" onclick="doSignup()">Create Account</button>
         <div style="font-size:12px;color:var(--muted);margin-top:14px;text-align:center;">
           Already have an account? <a href="#" onclick="showLoginView();return false;" style="color:var(--accent);font-weight:600;text-decoration:none;">Login</a>
         </div>
@@ -115,7 +115,7 @@
 <div class="app" id="app-root" style="display:none;">
 
 <!-- ── Sidebar ── -->
-<aside class="sidebar">
+<aside class="sidebar" id="sidebar-navigation" aria-label="Main navigation">
   <div class="sidebar-logo">
     <div class="logo-badge"><span>RPM</span></div>
     <div class="logo-text-wrap">
@@ -130,7 +130,7 @@
       <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
       <span>Dashboard</span>
     </button>
-    <button class="nav-item" onclick="showPage('leads', this)">
+    <button class="nav-item" onclick="showPage('leads', this)" id="nav-leads">
       <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
       <span>All Leads</span>
       <span class="badge-count" id="sb-leads-count">0</span>
@@ -156,20 +156,41 @@
       <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
       <span>Tasks</span>
     </button>
+  </div>
+
+  <div class="sidebar-section sidebar-management">
+    <div class="sidebar-label">Management</div>
     <button class="nav-item" onclick="showPage('team', this)" id="nav-team" style="display:none">
       <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
       <span>Team</span>
       <span class="badge-count" id="sb-pending-count" style="display:none">0</span>
     </button>
+    <button class="nav-item" onclick="showPage('settings', this)" id="nav-settings">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8a4 4 0 100 8 4 4 0 000-8zm8 4a8.1 8.1 0 00-.1-1.3l1.5-1.2-1.5-2.6-1.8.7a8.2 8.2 0 00-2.2-1.3L15.6 4h-3.1l-.3 2.3A8.2 8.2 0 0010 7.6l-1.8-.7-1.5 2.6 1.5 1.2a8.1 8.1 0 000 2.6l-1.5 1.2 1.5 2.6 1.8-.7a8.2 8.2 0 002.2 1.3l.3 2.3h3.1l.3-2.3a8.2 8.2 0 002.2-1.3l1.8.7 1.5-2.6-1.5-1.2A8.1 8.1 0 0020 12z"/></svg>
+      <span>Settings</span>
+    </button>
+  </div>
+  <div class="sidebar-footer">
+    <div class="profile-avatar" id="sidebar-avatar">U</div>
+    <div class="sidebar-profile-copy"><span id="sidebar-user-name">Your profile</span><small id="sidebar-user-role">Account</small></div>
+    <button class="btn-icon sidebar-logout" onclick="doLogout()" title="Log out" aria-label="Log out">
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+    </button>
   </div>
 </aside>
+<button class="sidebar-scrim" id="sidebar-scrim" aria-label="Close navigation" onclick="closeMobileNav()" tabindex="-1"></button>
 
 <!-- ── Main ── -->
 <div class="main">
 
   <!-- Top Bar -->
   <div class="topbar">
-    <div class="topbar-title" id="page-title">Dashboard</div>
+    <div class="topbar-heading">
+      <button class="mobile-menu-toggle btn-icon" id="mobile-menu-toggle" onclick="toggleMobileNav()" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar-navigation">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div class="topbar-title" id="page-title" tabindex="-1">Dashboard</div>
+    </div>
     <div class="topbar-right">
       <!-- Global search -->
       <div id="topbar-search-wrap" style="position:relative;">
@@ -199,9 +220,6 @@
         Add Lead
       </button>
       <span id="topbar-user-email" style="font-size:12px;color:var(--muted);margin-left:4px;"></span>
-      <button class="btn btn-ghost btn-sm" onclick="doLogout()" title="Logout">
-        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-      </button>
     </div>
   </div>
 
@@ -296,9 +314,12 @@
       </table>
       <div id="leads-empty" class="empty-state" style="display:none">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        <p>No leads found. Add your first lead or adjust filters.</p>
+        <p id="leads-empty-title">No leads yet</p>
+        <div class="empty-description" id="leads-empty-description">Start building your pipeline by adding your first lead.</div>
+        <button class="btn btn-primary empty-action" id="leads-empty-action" onclick="openLeadModal()">+ Add Lead</button>
       </div>
     </div>
+    <div class="table-pagination" id="leads-pagination" hidden></div>
   </div>
 
   <!-- ══ PIPELINE PAGE ══ -->
@@ -327,9 +348,12 @@
       </table>
       <div id="followups-empty" class="empty-state" style="display:none">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-        <p>No follow-ups scheduled. Set a next follow-up date on a lead.</p>
+        <p>No follow-ups scheduled</p>
+        <div class="empty-description">Set a follow-up date on a lead to keep the next action visible here.</div>
+        <button class="btn btn-primary empty-action" onclick="showPage('leads', document.getElementById('nav-leads')); openLeadModal()">+ Add Lead</button>
       </div>
     </div>
+    <div class="table-pagination" id="followups-pagination" hidden></div>
   </div>
 
   <!-- ══ REVENUE PAGE ══ -->
@@ -351,6 +375,7 @@
     <div style="margin-bottom:16px;">
       <div id="revenue-table-title" style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Closed Deals — This Month</div>
       <div class="table-wrap" id="revenue-table"></div>
+      <div class="table-pagination" id="revenue-pagination" hidden></div>
     </div>
   </div>
 
@@ -393,9 +418,12 @@
       </table>
       <div id="clients-empty" class="empty-state" style="display:none">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/></svg>
-        <p>No clients yet. Clients appear automatically when a lead is Closed Won, or add one manually.</p>
+        <p>No clients yet</p>
+        <div class="empty-description">Add a client or close a lead as won to start managing delivery.</div>
+        <button class="btn btn-primary empty-action" onclick="openClientModal()">+ Add Client</button>
       </div>
     </div>
+    <div class="table-pagination" id="clients-pagination" hidden></div>
   </div>
 
   <!-- ══ TASKS PAGE (all tasks, across all clients) ══ -->
@@ -437,9 +465,12 @@
       </table>
       <div id="tasks-page-empty" class="empty-state" style="display:none">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/></svg>
-        <p>No tasks match these filters.</p>
+        <p>No tasks yet</p>
+        <div class="empty-description">Create a task to coordinate the next piece of client work.</div>
+        <button class="btn btn-primary empty-action" onclick="openAddTaskModal()">+ Add Task</button>
       </div>
     </div>
+    <div class="table-pagination" id="tasks-pagination" hidden></div>
   </div>
 
   <!-- ══ TEAM PAGE (admin only) ══ -->
@@ -454,12 +485,33 @@
     </div>
   </div>
 
+  <div id="page-settings" class="page">
+    <div class="settings-grid">
+      <section class="settings-section">
+        <h2>Appearance</h2>
+        <p class="settings-copy">Choose the display mode for your workspace.</p>
+        <div class="settings-row">
+          <div><strong>Color theme</strong><div class="empty-description">Applies across all CRM pages.</div></div>
+          <button class="btn btn-ghost" onclick="toggleTheme()"><span id="settings-theme-label">Switch theme</span></button>
+        </div>
+      </section>
+      <section class="settings-section">
+        <h2>Account</h2>
+        <p class="settings-copy">Your signed-in profile and access role.</p>
+        <div class="settings-row"><strong>Name</strong><span id="settings-account-name">—</span></div>
+        <div class="settings-row"><strong>Email</strong><span id="settings-account-email">—</span></div>
+        <div class="settings-row"><strong>Role</strong><span id="settings-account-role">—</span></div>
+        <button class="btn btn-ghost" onclick="doLogout()">Log out</button>
+      </section>
+    </div>
+  </div>
+
 </div><!-- end .main -->
 </div><!-- end .app -->
 
 <!-- ══ ADD/EDIT LEAD MODAL ══ -->
 <div class="overlay" id="lead-modal-overlay" onclick="closeModalOnOverlay(event)">
-  <div class="modal" onclick="event.stopPropagation()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onclick="event.stopPropagation()">
     <div class="modal-head">
       <h2 id="modal-title">Add New Lead</h2>
       <button class="btn-icon" onclick="closeLeadModal()">
@@ -560,14 +612,14 @@
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeLeadModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveLead()">Save Lead</button>
+      <button class="btn btn-primary" id="save-lead-submit" onclick="saveLead()">Create Lead</button>
     </div>
   </div>
 </div>
 
 <!-- ══ DETAIL PANEL ══ -->
 <div class="detail-overlay" id="detail-overlay" onclick="closeDetailOnOverlay(event)">
-  <div class="detail-panel" onclick="event.stopPropagation()">
+  <div class="detail-panel" role="dialog" aria-modal="true" aria-labelledby="dp-name" onclick="event.stopPropagation()">
     <div class="detail-head">
       <div class="dh-top">
         <div>
@@ -587,7 +639,7 @@
 
 <!-- ══ ADD / EDIT CLIENT MODAL ══ -->
 <div class="overlay" id="client-modal-overlay" onclick="closeClientModalOnOverlay(event)">
-  <div class="modal" onclick="event.stopPropagation()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="client-modal-title" onclick="event.stopPropagation()">
     <div class="modal-head">
       <h2 id="client-modal-title">Add New Client</h2>
       <button class="btn-icon" onclick="closeClientModal()">
@@ -633,14 +685,14 @@
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeClientModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveClient()">Save Client</button>
+      <button class="btn btn-primary" id="save-client-submit" onclick="saveClient()">Create Client</button>
     </div>
   </div>
 </div>
 
 <!-- ══ CLIENT DETAIL DRAWER ══ -->
 <div class="detail-overlay" id="client-detail-overlay" onclick="closeClientDetailOnOverlay(event)">
-  <div class="detail-panel" onclick="event.stopPropagation()">
+  <div class="detail-panel" role="dialog" aria-modal="true" aria-labelledby="cdp-name" onclick="event.stopPropagation()">
     <div class="detail-head">
       <div class="dh-top">
         <div>
@@ -663,9 +715,9 @@
 
 <!-- ══ ADD TASK MODAL (from the global Tasks page — needs a client picker) ══ -->
 <div class="overlay" id="task-modal-overlay" onclick="closeTaskModalOnOverlay(event)">
-  <div class="modal" onclick="event.stopPropagation()" style="max-width:480px;">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title" onclick="event.stopPropagation()" style="max-width:480px;">
     <div class="modal-head">
-      <h2>Add New Task</h2>
+      <h2 id="task-modal-title">Add New Task</h2>
       <button class="btn-icon" onclick="closeTaskModal()">
         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
@@ -691,13 +743,19 @@
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeTaskModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveTaskFromModal()">Add Task</button>
+      <button class="btn btn-primary" id="save-task-submit" onclick="saveTaskFromModal()">Create Task</button>
     </div>
   </div>
 </div>
 
+<div class="session-transition" id="session-transition" aria-live="polite" aria-atomic="true">
+  <div class="session-transition-mark">RPM</div>
+  <div class="session-transition-title">Welcome</div>
+  <div class="session-transition-subtitle">Your workspace is ready.</div>
+</div>
+
 <!-- Toast -->
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 
 <!-- App modules -->

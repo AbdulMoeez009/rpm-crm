@@ -15,11 +15,39 @@ function renderAll() {
 /* ══════════════════════════════════════
    TOAST
 ══════════════════════════════════════ */
+let toastTimer = null;
 function showToast(msg, type = '') {
   const t = document.getElementById('toast');
   t.textContent = msg;
+  t.setAttribute('role', type === 'error' ? 'alert' : 'status');
   t.className = `toast show ${type}`;
-  setTimeout(() => { t.className = 'toast'; }, 2800);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = 'toast'; }, 2800);
+}
+
+function showSessionTransition(title, subtitle) {
+  const screen = document.getElementById('session-transition');
+  screen.querySelector('.session-transition-title').textContent = title;
+  screen.querySelector('.session-transition-subtitle').textContent = subtitle;
+  screen.classList.add('show');
+  clearTimeout(showSessionTransition.timer);
+  showSessionTransition.timer = setTimeout(() => screen.classList.remove('show'), 1500);
+}
+
+async function withButtonLoading(buttonId, loadingLabel, operation) {
+  const button = document.getElementById(buttonId);
+  if (!button) return operation();
+  const original = button.innerHTML;
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  button.textContent = loadingLabel;
+  try {
+    return await operation();
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+    button.innerHTML = original;
+  }
 }
 
 /* ══════════════════════════════════════
@@ -31,6 +59,8 @@ function showToast(msg, type = '') {
   document.documentElement.setAttribute('data-theme', saved);
   const btn = document.getElementById('theme-toggle');
   if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+  const label = document.getElementById('settings-theme-label');
+  if (label) label.textContent = saved === 'dark' ? 'Switch to light' : 'Switch to dark';
 })();
 
 // Note: startup rendering now happens inside auth.onAuthStateChanged() above —

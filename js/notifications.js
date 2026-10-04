@@ -39,7 +39,7 @@ function renderNotifDropdown() {
   if (!wrap) return;
 
   if (notifications.length === 0) {
-    wrap.innerHTML = `<div style="padding:20px;text-align:center;font-size:12px;color:var(--muted);">No notifications yet.</div>`;
+    wrap.innerHTML = `<div class="empty-state empty-state-compact"><p>No notifications yet</p><div class="empty-description">Assignments and reminders will appear here.</div></div>`;
     return;
   }
 

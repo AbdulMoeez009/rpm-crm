@@ -4,6 +4,7 @@
 function openLeadModal(id = null) {
   editingId = id;
   document.getElementById('modal-title').textContent = id ? 'Edit Lead' : 'Add New Lead';
+  document.getElementById('save-lead-submit').textContent = id ? 'Save Changes' : 'Create Lead';
 
   // Rebuild the Closer / Support Manager dropdowns from the live roster every
   // time the modal opens, so newly-approved team members show up right away.
@@ -51,11 +52,11 @@ function openLeadModal(id = null) {
     document.getElementById('f-stage').value = 'New Lead';
   }
 
-  document.getElementById('lead-modal-overlay').classList.add('show');
+  openDialog('lead-modal-overlay');
 }
 
 function closeLeadModal() {
-  document.getElementById('lead-modal-overlay').classList.remove('show');
+  closeDialog('lead-modal-overlay');
   editingId = null;
 }
 
@@ -136,8 +137,9 @@ async function saveLead() {
     lastContact: document.getElementById('f-last-contact').value,
   };
 
-  try {
-    if (editingId) {
+  const saved = await withButtonLoading('save-lead-submit', editingId ? 'Saving…' : 'Creating…', async () => {
+    try {
+      if (editingId) {
       // update existing lead in Firestore
       const existing = leads.find(l => l.id === editingId);
       // Revenue tracking: stamp closedDate the moment it becomes Closed Won,
@@ -169,12 +171,16 @@ async function saveLead() {
       if (data.closerUid) {
         notifyUser(data.closerUid, 'lead_assigned', `New lead assigned to you: ${data.bizName}`, { leadId: ref.id });
       }
-      showToast('Lead added!', 'success');
+        showToast('Lead added successfully', 'success');
+      }
+      return true;
+    } catch (e) {
+      showToast('Unable to save lead. Please try again.', 'error');
+      console.error(e);
+      return false;
     }
-  } catch (e) {
-    showToast('❌ Save fail: ' + e.message, 'error');
-    return;
-  }
+  });
+  if (!saved) return;
 
   closeLeadModal(); // the Firestore listener will refresh the tables automatically
 }

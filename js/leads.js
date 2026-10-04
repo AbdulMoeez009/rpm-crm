@@ -87,17 +87,26 @@ function renderLeadsTable() {
 
   const tbody = document.getElementById('leads-tbody');
   const empty = document.getElementById('leads-empty');
+  const visibleRows = paginateRows('leads', filtered, 'leads-pagination', 'renderLeadsTable');
 
   if (filtered.length === 0) {
     tbody.innerHTML = '';
-    empty.style.display = 'block';
+    empty.style.display = 'flex';
+    const noLeads = leads.length === 0;
+    document.getElementById('leads-empty-title').textContent = noLeads ? 'No leads yet' : 'No leads match these filters';
+    document.getElementById('leads-empty-description').textContent = noLeads
+      ? 'Start building your pipeline by adding your first lead.'
+      : 'Try changing your search or filters to see more results.';
+    document.getElementById('leads-empty-action').style.display = noLeads ? 'inline-flex' : 'none';
   } else {
     empty.style.display = 'none';
-    tbody.innerHTML = filtered.map(l => `
+    tbody.innerHTML = visibleRows.map(l => `
       <tr class="${l.status==='Hot'?'hot-row':''}">
         <td>
-          <div class="lead-name">${l.status==='Hot'?'🔥 ':''}${l.ownerName||'—'}</div>
-          <div class="lead-biz">${l.bizName}${l.city?' · '+l.city:''}</div>
+          <div class="table-person">
+            <span class="table-avatar">${escapeHtml((l.ownerName || l.bizName || '?').trim().charAt(0).toUpperCase())}</span>
+            <div><div class="lead-name">${l.status==='Hot'?'🔥 ':''}${l.ownerName||'—'}</div><div class="lead-biz">${l.bizName}${l.city?' · '+l.city:''}</div></div>
+          </div>
         </td>
         <td>${l.dialer||'—'}</td>
         <td>
@@ -162,15 +171,16 @@ function renderFollowups() {
 
   const tbody = document.getElementById('followups-tbody');
   const empty = document.getElementById('followups-empty');
+  const visibleRows = paginateRows('followups', withDate, 'followups-pagination', 'renderFollowups');
 
   if (withDate.length === 0) {
     tbody.innerHTML = '';
-    empty.style.display = 'block';
+    empty.style.display = 'flex';
   } else {
     empty.style.display = 'none';
-    tbody.innerHTML = withDate.map(l => `
+    tbody.innerHTML = visibleRows.map(l => `
       <tr class="${l.status==='Hot'?'hot-row':''}">
-        <td><div class="lead-name">${l.status==='Hot'?'🔥 ':''}${l.ownerName||'—'}</div></td>
+        <td><div class="table-person"><span class="table-avatar">${escapeHtml((l.ownerName || l.bizName || '?').trim().charAt(0).toUpperCase())}</span><div class="lead-name">${l.status==='Hot'?'🔥 ':''}${l.ownerName||'—'}</div></div></td>
         <td>${l.bizName}</td>
         <td>${l.dialer||'—'}</td>
         <td>${l.phone1||'—'}</td>

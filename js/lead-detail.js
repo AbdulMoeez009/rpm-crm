@@ -88,11 +88,11 @@ function openDetail(id) {
     <button class="btn btn-danger btn-sm" onclick="deleteLead('${l.id}');closeDetail()">Delete</button>
   `;
 
-  document.getElementById('detail-overlay').classList.add('show');
+  openDialog('detail-overlay');
 }
 
 function closeDetail() {
-  document.getElementById('detail-overlay').classList.remove('show');
+  closeDialog('detail-overlay');
   viewingId = null;
 }
 

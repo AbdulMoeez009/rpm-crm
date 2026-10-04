@@ -78,7 +78,7 @@ function renderDashboard() {
   // Hot leads mini table
   const hotLeads = leads.filter(l => l.status === 'Hot');
   if (hotLeads.length === 0) {
-    document.getElementById('hot-leads-table').innerHTML = `<div class="empty-state"><p>No hot leads yet. Mark a lead as Hot to see it here.</p></div>`;
+    document.getElementById('hot-leads-table').innerHTML = `<div class="empty-state"><p>No hot leads yet</p><div class="empty-description">Mark a lead as Hot to see it in this list.</div><button class="btn btn-ghost empty-action" onclick="openDashboardLeads('Hot')">View leads</button></div>`;
   } else {
     document.getElementById('hot-leads-table').innerHTML = `
       <table><thead><tr>
@@ -105,7 +105,7 @@ function renderDashboard() {
     .sort((a, b) => a.daysLeft - b.daysLeft);
 
   if (renewalRows.length === 0) {
-    document.getElementById('dash-renewals-table').innerHTML = `<div class="empty-state"><p>No renewals due in the next 30 days.</p></div>`;
+    document.getElementById('dash-renewals-table').innerHTML = `<div class="empty-state"><p>No upcoming renewals</p><div class="empty-description">Renewals due in the next 30 days will appear here.</div></div>`;
   } else {
     document.getElementById('dash-renewals-table').innerHTML = `
       <table><thead><tr>

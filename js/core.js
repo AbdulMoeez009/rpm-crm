@@ -91,7 +91,7 @@ function showPage(name, el) {
   if (el) el.classList.add('active');
 
   // set topbar title
-  const titles = { dashboard:'Dashboard', leads:'All Leads', pipeline:'Pipeline Board', followups:'Follow-Ups', revenue:'Revenue', clients:'Clients', tasks:'Tasks', team:'Team Management' };
+  const titles = { dashboard:'Dashboard', leads:'All Leads', pipeline:'Pipeline Board', followups:'Follow-Ups', revenue:'Revenue', clients:'Clients', tasks:'Tasks', team:'Team Management', settings:'Settings' };
   document.getElementById('page-title').textContent = titles[name] || '';
 
   // render appropriate view
@@ -103,9 +103,110 @@ function showPage(name, el) {
   if (name === 'clients') renderClientsTable();
   if (name === 'tasks') renderGlobalTasksPage();
   if (name === 'team') renderTeam();
+  closeMobileNav();
+}
+
+function toggleMobileNav() {
+  if (document.body.classList.contains('mobile-nav-open')) closeMobileNav();
+  else {
+    document.body.classList.add('mobile-nav-open');
+    document.getElementById('mobile-menu-toggle').setAttribute('aria-expanded', 'true');
+    document.querySelector('#sidebar-navigation .nav-item:not([style*="display: none"])')?.focus();
+  }
+}
+
+function closeMobileNav() {
+  const wasOpen = document.body.classList.contains('mobile-nav-open');
+  document.body.classList.remove('mobile-nav-open');
+  document.getElementById('mobile-menu-toggle')?.setAttribute('aria-expanded', 'false');
+  if (wasOpen && document.activeElement.closest('#sidebar-navigation')) document.getElementById('mobile-menu-toggle')?.focus();
+}
+
+const dialogFocusStack = [];
+function openDialog(overlayId) {
+  const overlay = document.getElementById(overlayId);
+  dialogFocusStack.push(document.activeElement);
+  overlay.classList.add('show');
+  requestAnimationFrame(() => {
+    const dialog = overlay.querySelector('.modal, .detail-panel');
+    (dialog?.querySelector('input:not([disabled]), select:not([disabled]), textarea:not([disabled])') ||
+      dialog?.querySelector('button:not([disabled])'))?.focus();
+  });
+}
+
+function closeDialog(overlayId) {
+  document.getElementById(overlayId).classList.remove('show');
+  const previous = dialogFocusStack.pop();
+  if (previous?.isConnected && previous.getClientRects().length) previous.focus();
+  else document.getElementById('page-title')?.focus();
+}
+
+const tablePageByKey = {};
+const TABLE_PAGE_SIZE = 10;
+function paginateRows(key, rows, containerId, renderFunction) {
+  const pageCount = Math.max(1, Math.ceil(rows.length / TABLE_PAGE_SIZE));
+  const page = Math.min(tablePageByKey[key] || 1, pageCount);
+  tablePageByKey[key] = page;
+  const container = document.getElementById(containerId);
+  container.hidden = rows.length <= TABLE_PAGE_SIZE;
+  if (!container.hidden) {
+    const firstRow = (page - 1) * TABLE_PAGE_SIZE + 1;
+    const lastRow = Math.min(page * TABLE_PAGE_SIZE, rows.length);
+    container.innerHTML = `<span>${firstRow}–${lastRow} of ${rows.length}</span><div class="pagination-controls"><button class="btn btn-ghost btn-sm" onclick="changeTablePage('${key}', ${page - 1}, '${renderFunction}')" ${page === 1 ? 'disabled' : ''} aria-label="Previous page">Previous</button><span>Page ${page} of ${pageCount}</span><button class="btn btn-ghost btn-sm" onclick="changeTablePage('${key}', ${page + 1}, '${renderFunction}')" ${page === pageCount ? 'disabled' : ''} aria-label="Next page">Next</button></div>`;
+  }
+  return rows.slice((page - 1) * TABLE_PAGE_SIZE, page * TABLE_PAGE_SIZE);
+}
+
+function changeTablePage(key, page, renderFunction) {
+  tablePageByKey[key] = page;
+  window[renderFunction]();
 }
 
 document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    if (document.body.classList.contains('mobile-nav-open')) {
+      closeMobileNav();
+      document.getElementById('mobile-menu-toggle')?.focus();
+      return;
+    }
+    const openOverlay = document.querySelector('#lead-modal-overlay.show, #client-modal-overlay.show, #task-modal-overlay.show');
+    if (openOverlay) {
+      const closeHandlers = {
+        'lead-modal-overlay': closeLeadModal,
+        'client-modal-overlay': closeClientModal,
+        'task-modal-overlay': closeTaskModal,
+      };
+      closeHandlers[openOverlay.id]?.();
+      return;
+    }
+    if (document.getElementById('detail-overlay').classList.contains('show')) { closeDetail(); return; }
+    if (document.getElementById('client-detail-overlay').classList.contains('show')) { closeClientDetail(); return; }
+    if (document.getElementById('global-search-results').style.display !== 'none' || document.getElementById('notif-dropdown').style.display !== 'none') {
+      closeGlobalSearch();
+      toggleNotifDropdownClosed();
+      return;
+    }
+  }
+
+  if (event.key === 'Tab') {
+    const activeOverlay = [...document.querySelectorAll('.overlay.show, .detail-overlay.show')].at(-1);
+    const dialog = activeOverlay?.querySelector('.modal, .detail-panel');
+    if (dialog) {
+      const focusable = [...dialog.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+        .filter(item => item.getClientRects().length);
+      if (!focusable.length) { event.preventDefault(); return; }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+  }
+
   const customControl = event.target.closest('[data-keyboard-activate]');
   if (customControl && (event.key === 'Enter' || event.key === ' ')) {
     event.preventDefault();

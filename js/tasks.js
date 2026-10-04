@@ -155,15 +155,28 @@ function renderGlobalTasksPage() {
   const tbody = document.getElementById('tasks-page-tbody');
   const emptyEl = document.getElementById('tasks-page-empty');
   if (!tbody) return;
+  const visibleRows = paginateRows('tasks', rows, 'tasks-pagination', 'renderGlobalTasksPage');
 
   if (rows.length === 0) {
     tbody.innerHTML = '';
-    if (emptyEl) emptyEl.style.display = 'flex';
+    if (emptyEl) {
+      emptyEl.style.display = 'flex';
+      emptyEl.querySelector('p').textContent = rows.length || allTasks.length ? 'No tasks match these filters' : 'No tasks yet';
+      emptyEl.querySelector('.empty-description').textContent = rows.length || allTasks.length
+        ? 'Try changing your task filters to see more results.'
+        : clients.length
+          ? 'Create a task to coordinate the next piece of client work.'
+          : 'Add a client before creating a task for their work.';
+      const action = emptyEl.querySelector('.empty-action');
+      action.textContent = clients.length ? '+ Add Task' : '+ Add Client';
+      action.onclick = clients.length ? openAddTaskModal : () => { showPage('clients', document.getElementById('nav-clients')); openClientModal(); };
+      action.style.display = rows.length || allTasks.length ? 'none' : 'inline-flex';
+    }
     return;
   }
   if (emptyEl) emptyEl.style.display = 'none';
 
-  tbody.innerHTML = rows.map(t => {
+  tbody.innerHTML = visibleRows.map(t => {
     const client = clients.find(c => c.id === t.clientId);
     const assignee = teamUsers.find(u => u.uid === t.assignedUid);
     const overdue = t.dueDate && t.dueDate < today() && t.status !== 'Completed' && t.status !== 'Cancelled';
@@ -208,11 +221,11 @@ function openAddTaskModal() {
   document.getElementById('tf-priority').value = 'Medium';
   document.getElementById('tf-due').value = '';
 
-  document.getElementById('task-modal-overlay').classList.add('show');
+  openDialog('task-modal-overlay');
 }
 
 function closeTaskModal() {
-  document.getElementById('task-modal-overlay').classList.remove('show');
+  closeDialog('task-modal-overlay');
 }
 
 function closeTaskModalOnOverlay(e) {
@@ -231,23 +244,28 @@ async function saveTaskFromModal() {
 
   const assignee = assignedUid ? teamUsers.find(u => u.uid === assignedUid) : null;
 
-  try {
-    await tasksCol.add({
-      clientId,
-      title,
-      assignedUid: assignedUid || '',
-      assignedName: assignee ? (assignee.name || assignee.email) : '',
-      priority,
-      status: 'Pending',
-      dueDate: dueDate || '',
-      createdBy: currentUid,
-      createdAt: today(),
-    });
-    showToast('Task added!', 'success');
-    if (assignedUid) notifyUser(assignedUid, 'task_assigned', `New task assigned: ${title}`, { clientId });
-    closeTaskModal();
-  } catch (e) {
-    showToast('❌ Could not add task: ' + e.message, 'error');
-  }
+  const saved = await withButtonLoading('save-task-submit', 'Creating…', async () => {
+    try {
+      await tasksCol.add({
+        clientId,
+        title,
+        assignedUid: assignedUid || '',
+        assignedName: assignee ? (assignee.name || assignee.email) : '',
+        priority,
+        status: 'Pending',
+        dueDate: dueDate || '',
+        createdBy: currentUid,
+        createdAt: today(),
+      });
+      showToast('Task created successfully', 'success');
+      if (assignedUid) notifyUser(assignedUid, 'task_assigned', `New task assigned: ${title}`, { clientId });
+      return true;
+    } catch (e) {
+      showToast('Unable to save task. Please try again.', 'error');
+      console.error(e);
+      return false;
+    }
+  });
+  if (saved) closeTaskModal();
 }
 
