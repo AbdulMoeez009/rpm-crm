@@ -34,13 +34,13 @@ function renderGlobalSearchResults() {
 
   wrap.innerHTML =
     section('Leads', matchedLeads, l => `
-      <div onclick="closeGlobalSearch(); openDetail('${l.id}');" style="padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border);">
+      <div role="button" tabindex="0" data-keyboard-activate onclick="closeGlobalSearch(); openDetail('${l.id}');" style="padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border);">
         <div style="font-weight:600;font-size:13px;">${escapeHtml(l.bizName||'—')}</div>
         <div style="font-size:11px;color:var(--muted);">${escapeHtml(l.ownerName||'')} · ${escapeHtml(l.phone1||'')}</div>
       </div>
     `) +
     section('Clients', matchedClients, c => `
-      <div onclick="closeGlobalSearch(); showPage('clients', document.getElementById('nav-clients')); openClientDetail('${c.id}');" style="padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border);">
+      <div role="button" tabindex="0" data-keyboard-activate onclick="closeGlobalSearch(); showPage('clients', document.getElementById('nav-clients')); openClientDetail('${c.id}');" style="padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border);">
         <div style="font-weight:600;font-size:13px;">${escapeHtml(c.businessName||'—')}</div>
         <div style="font-size:11px;color:var(--muted);">${escapeHtml(c.ownerName||'')} · ${escapeHtml(c.phone1||'')}</div>
       </div>
@@ -48,7 +48,7 @@ function renderGlobalSearchResults() {
     section('Tasks', matchedTasks, t => {
       const client = clients.find(c => c.id === t.clientId);
       return `
-      <div onclick="closeGlobalSearch(); showPage('clients', document.getElementById('nav-clients')); openClientDetail('${t.clientId}');" style="padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border);">
+      <div role="button" tabindex="0" data-keyboard-activate onclick="closeGlobalSearch(); showPage('clients', document.getElementById('nav-clients')); openClientDetail('${t.clientId}');" style="padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border);">
         <div style="font-weight:600;font-size:13px;">${escapeHtml(t.title)}</div>
         <div style="font-size:11px;color:var(--muted);">${client ? escapeHtml(client.businessName) : ''} · ${t.status}</div>
       </div>

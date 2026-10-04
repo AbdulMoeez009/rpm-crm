@@ -1,6 +1,13 @@
 /* ══════════════════════════════════════
    DASHBOARD
 ══════════════════════════════════════ */
+function openDashboardLeads(status = '') {
+  showPage('leads', document.getElementById('nav-leads'));
+  document.getElementById('filter-status').value = status;
+  document.getElementById('search-input').value = '';
+  renderLeadsTable();
+}
+
 function renderDashboard() {
   const total = leads.length;
   const hot = leads.filter(l => l.status === 'Hot').length;
@@ -9,22 +16,22 @@ function renderDashboard() {
 
   // Stat cards
   document.getElementById('dash-stats').innerHTML = `
-    <div class="stat-card stat-blue">
+    <div class="stat-card stat-blue stat-card-clickable" role="button" tabindex="0" data-keyboard-activate aria-label="View all leads" onclick="openDashboardLeads()">
       <div class="stat-label">Total Leads</div>
       <div class="stat-val">${total}</div>
       <div class="stat-desc">In your CRM</div>
     </div>
-    <div class="stat-card stat-red">
+    <div class="stat-card stat-red stat-card-clickable" role="button" tabindex="0" data-keyboard-activate aria-label="View hot leads" onclick="openDashboardLeads('Hot')">
       <div class="stat-label">🔥 Hot Leads</div>
       <div class="stat-val">${hot}</div>
       <div class="stat-desc">Ready to close</div>
     </div>
-    <div class="stat-card stat-orange">
+    <div class="stat-card stat-orange stat-card-clickable" role="button" tabindex="0" data-keyboard-activate aria-label="View warm leads" onclick="openDashboardLeads('Warm')">
       <div class="stat-label">🌤 Warm Leads</div>
       <div class="stat-val">${warm}</div>
       <div class="stat-desc">Nurture them</div>
     </div>
-    <div class="stat-card stat-green">
+    <div class="stat-card stat-green stat-card-clickable" role="button" tabindex="0" data-keyboard-activate aria-label="View follow-ups" onclick="showPage('followups', document.getElementById('nav-followups'))">
       <div class="stat-label">⏰ Follow-Ups Today</div>
       <div class="stat-val">${due}</div>
       <div class="stat-desc">${due > 0 ? 'Action needed!' : 'All clear'}</div>
@@ -37,12 +44,12 @@ function renderDashboard() {
   // This month's revenue (mini version — full breakdown lives on the Revenue page)
   const rev = computeMonthlyRevenue(0);
   document.getElementById('dash-revenue-stats').innerHTML = `
-    <div class="stat-card stat-green">
+    <div class="stat-card stat-green stat-card-clickable" role="button" tabindex="0" data-keyboard-activate aria-label="View team revenue" onclick="showPage('revenue', document.getElementById('nav-revenue'))">
       <div class="stat-label">💰 Team Total</div>
       <div class="stat-val">${fmtPrice(rev.teamTotal)}</div>
       <div class="stat-desc">${rev.teamCount} deal${rev.teamCount===1?'':'s'} closed this month</div>
     </div>
-    <div class="stat-card stat-blue">
+    <div class="stat-card stat-blue stat-card-clickable" role="button" tabindex="0" data-keyboard-activate aria-label="View your revenue" onclick="showPage('revenue', document.getElementById('nav-revenue'))">
       <div class="stat-label">🙋 Your Revenue</div>
       <div class="stat-val">${fmtPrice(rev.myTotal)}</div>
       <div class="stat-desc">${rev.myCount} deal${rev.myCount===1?'':'s'} you closed</div>
@@ -57,7 +64,7 @@ function renderDashboard() {
       <div class="pipeline-header">${stage} <span class="pipeline-count">${cols.length}</span></div>
       <div class="pipeline-cards">
         ${cols.slice(0,3).map(l => `
-          <div class="pipeline-card" onclick="openDetail('${l.id}')">
+          <div class="pipeline-card" role="button" tabindex="0" data-keyboard-activate aria-label="Open ${l.ownerName || l.bizName}" onclick="openDetail('${l.id}')">
             <div class="pc-name">${l.status === 'Hot' ? '🔥 ' : ''}${l.ownerName || l.bizName}</div>
             <div class="pc-biz">${l.bizName}</div>
           </div>

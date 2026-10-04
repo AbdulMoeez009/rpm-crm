@@ -132,7 +132,7 @@ function renderPipeline() {
       <div class="pipeline-header">${stage} <span class="pipeline-count">${cols.length}</span></div>
       <div class="pipeline-cards">
         ${cols.map(l => `
-          <div class="pipeline-card" onclick="openDetail('${l.id}')">
+          <div class="pipeline-card" role="button" tabindex="0" data-keyboard-activate aria-label="Open ${l.ownerName || l.bizName}" onclick="openDetail('${l.id}')">
             <div class="pc-name">${l.status==='Hot'?'🔥 ':''}${l.ownerName||l.bizName}</div>
             <div class="pc-biz">${l.bizName}</div>
             <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
