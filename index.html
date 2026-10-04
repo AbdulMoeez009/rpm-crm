@@ -16,6 +16,11 @@
 <!-- ══ LOGIN SCREEN (shown until the user signs in) ══ -->
 <div class="overlay show auth-overlay" id="auth-overlay">
   <img class="auth-background-art" src="assets/crm-welcome.svg" alt="" aria-hidden="true">
+  <section class="auth-welcome" aria-label="Welcome to RPM CRM">
+    <div class="auth-welcome-mark">RPM</div>
+    <h1>Turn every lead into momentum</h1>
+    <p>Keep conversations, follow-ups, and client growth moving in one place.</p>
+  </section>
   <div class="modal auth-card" role="dialog" aria-modal="true" aria-labelledby="auth-title" onclick="event.stopPropagation()">
     <div class="modal-head auth-head">
       <div class="auth-mark">
@@ -42,7 +47,7 @@
         <div style="text-align:right;margin-bottom:4px;">
           <a href="#" onclick="showForgotView();return false;" style="font-size:11px;color:var(--muted);text-decoration:none;">Forgot password?</a>
         </div>
-        <div id="auth-error" style="color:var(--hot);font-size:12px;margin:8px 0;display:none;"></div>
+        <div id="auth-error" class="auth-feedback" role="alert" aria-live="assertive" style="color:var(--hot);font-size:12px;margin:8px 0;display:none;"></div>
         <button class="btn btn-primary" id="auth-login-submit" style="width:100%;justify-content:center;margin-top:10px;" onclick="doLogin()">Login</button>
         <div style="font-size:12px;color:var(--muted);margin-top:14px;text-align:center;">
           Don't have an account? <a href="#" onclick="showSignupView();return false;" style="color:var(--accent);font-weight:600;text-decoration:none;">Sign up</a>
@@ -57,8 +62,8 @@
           <label>Email</label>
           <input id="forgot-email" type="email" placeholder="you@rpm.com" onkeydown="if(event.key==='Enter')doForgotPassword()">
         </div>
-        <div id="forgot-error" style="color:var(--hot);font-size:12px;margin:8px 0;display:none;"></div>
-        <div id="forgot-success" style="color:var(--green);font-size:12px;margin:8px 0;display:none;"></div>
+        <div id="forgot-error" class="auth-feedback" role="alert" aria-live="assertive" style="color:var(--hot);font-size:12px;margin:8px 0;display:none;"></div>
+        <div id="forgot-success" class="auth-feedback success" role="status" aria-live="polite" style="color:var(--green);font-size:12px;margin:8px 0;display:none;"></div>
         <button class="btn btn-primary" id="auth-forgot-submit" style="width:100%;justify-content:center;margin-top:10px;" onclick="doForgotPassword()">Send Reset Link</button>
         <div style="font-size:12px;color:var(--muted);margin-top:14px;text-align:center;">
           <a href="#" onclick="showLoginView();return false;" style="color:var(--accent);font-weight:600;text-decoration:none;">← Back to Login</a>
@@ -94,7 +99,7 @@
             </button>
           </div>
         </div>
-        <div id="signup-error" style="color:var(--hot);font-size:12px;margin:8px 0;display:none;"></div>
+        <div id="signup-error" class="auth-feedback" role="alert" aria-live="assertive" style="color:var(--hot);font-size:12px;margin:8px 0;display:none;"></div>
         <button class="btn btn-primary" id="auth-signup-submit" style="width:100%;justify-content:center;margin-top:10px;" onclick="doSignup()">Create Account</button>
         <div style="font-size:12px;color:var(--muted);margin-top:14px;text-align:center;">
           Already have an account? <a href="#" onclick="showLoginView();return false;" style="color:var(--accent);font-weight:600;text-decoration:none;">Login</a>
@@ -214,14 +219,27 @@
       <button class="btn btn-ghost" id="theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode" style="font-size:16px;padding:7px 12px;">🌙</button>
       <button class="btn btn-success" onclick="exportCSV()">
         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-        Export Excel
+        Export CSV
       </button>
       <button class="btn btn-primary" id="topbar-add-lead" onclick="openLeadModal(null, this)">
         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         Add Lead
       </button>
-      <span id="topbar-user-email" style="font-size:12px;color:var(--muted);margin-left:4px;"></span>
+      <div class="user-menu-wrap">
+        <button class="btn btn-ghost user-menu-trigger" id="user-menu-trigger" type="button" aria-expanded="false" aria-controls="user-menu" onclick="toggleUserMenu()">
+          <span class="user-menu-avatar" id="topbar-user-avatar">U</span><span id="topbar-user-shortname">Account</span>
+        </button>
+        <div class="user-menu" id="user-menu" hidden>
+          <strong id="topbar-user-email"></strong>
+          <span id="topbar-user-role"></span>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="doLogout()">Log out</button>
+        </div>
+      </div>
     </div>
+  </div>
+  <div id="network-status" class="network-status" role="status" hidden>
+    <span id="network-status-message">Connection status</span>
+    <button type="button" class="btn btn-ghost btn-sm" id="network-retry-button" onclick="retryDataSync()">Retry</button>
   </div>
 
   <!-- ══ DASHBOARD PAGE ══ -->
@@ -263,6 +281,18 @@
 
   <!-- ══ ALL LEADS PAGE ══ -->
   <div id="page-leads" class="page">
+
+    <div class="lead-tools-bar">
+      <label class="sr-only" for="lead-record-view">Lead records</label>
+      <select id="lead-record-view" onchange="renderLeadsTable()">
+        <option value="active">Active leads</option>
+        <option value="archived">Archived leads</option>
+      </select>
+      <span class="lead-tools-spacer"></span>
+      <input id="lead-import-file" type="file" accept=".csv,text/csv" hidden onchange="handleLeadImportFile(event)">
+      <button class="btn btn-ghost btn-sm" type="button" onclick="document.getElementById('lead-import-file').click()">Import CSV</button>
+      <button class="btn btn-ghost btn-sm" type="button" onclick="downloadCrmBackup()">Backup JSON</button>
+    </div>
 
     <!-- Filters -->
     <div class="filters-bar">
@@ -330,6 +360,9 @@
 
   <!-- ══ FOLLOW-UPS PAGE ══ -->
   <div id="page-followups" class="page">
+    <div class="followup-page-tools">
+      <button class="btn btn-ghost btn-sm" type="button" onclick="downloadFollowupsCalendar()">Export Calendar (.ics)</button>
+    </div>
     <div id="followup-strip-wrap2"></div>
     <div class="table-wrap">
       <table>
@@ -509,6 +542,23 @@
 
 </div><!-- end .main -->
 </div><!-- end .app -->
+
+<div class="overlay import-preview-overlay" id="import-preview-overlay" onclick="closeImportPreviewOnOverlay(event)">
+  <section class="modal import-preview-modal" role="dialog" aria-modal="true" aria-labelledby="import-preview-title" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <div><h2 id="import-preview-title">Review CSV import</h2><div class="empty-description" id="import-preview-summary"></div></div>
+      <button class="btn-icon" type="button" aria-label="Close import preview" onclick="closeImportPreview()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="import-preview-mapping" class="import-preview-mapping"></div>
+      <div class="import-preview-table-wrap" id="import-preview-table"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" type="button" onclick="closeImportPreview()">Cancel</button>
+      <button class="btn btn-primary" id="import-confirm-button" type="button" onclick="importPreviewRows()">Import valid rows</button>
+    </div>
+  </section>
+</div>
 
 <!-- ══ ADD/EDIT LEAD MODAL ══ -->
 <div class="overlay" id="lead-modal-overlay" onclick="closeModalOnOverlay(event)">

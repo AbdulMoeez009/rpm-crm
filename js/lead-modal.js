@@ -152,6 +152,12 @@ async function saveLead() {
     lastContact: document.getElementById('f-last-contact').value,
   };
 
+  const duplicates = findPotentialLeadDuplicates(data, editingId);
+  if (duplicates.length) {
+    const examples = duplicates.slice(0, 3).map(lead => lead.bizName || lead.phone1).join(', ');
+    if (!confirm(`This phone or email already appears on ${duplicates.length} lead${duplicates.length === 1 ? '' : 's'}: ${examples}. Create/save this record anyway?`)) return;
+  }
+
   const saved = await withButtonLoading('save-lead-submit', editingId ? 'Saving…' : 'Creating…', async () => {
     try {
       if (editingId) {
@@ -164,7 +170,21 @@ async function saveLead() {
       } else if (data.stage !== 'Closed Won') {
         data.closedDate = '';
       }
-      await leadsCol.doc(editingId).update(data);
+      const stageChanged = Boolean(existing && existing.stage !== data.stage);
+      if (stageChanged) {
+        const stageText = `Stage changed from ${existing.stage || 'New Lead'} to ${data.stage}`;
+        data.activitySearch = `${existing.activitySearch || ''}\n${stageText}`.slice(-4000);
+        const activityRef = leadsCol.doc(editingId).collection('activity').doc();
+        const batch = db.batch();
+        batch.update(leadsCol.doc(editingId), data);
+        batch.set(activityRef, {
+          type: 'stage', text: stageText, fromStage: existing.stage || 'New Lead', toStage: data.stage,
+          authorUid: currentUid, authorEmail: currentUserEmail, createdAt: new Date().toISOString(),
+        });
+        await batch.commit();
+      } else {
+        await leadsCol.doc(editingId).update(data);
+      }
       const mergedExisting = { ...existing, ...data };
       await syncRevenueEntry(editingId, mergedExisting);
       await syncClientFromLead(editingId, mergedExisting);

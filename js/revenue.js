@@ -17,7 +17,7 @@ function startRevenueListener() {
       if (activePage && activePage.id === 'page-revenue') renderRevenue();
       if (activePage && activePage.id === 'page-dashboard') renderDashboard();
     },
-    err => console.error(err)
+    scheduleLeadsRetry
   );
 }
 

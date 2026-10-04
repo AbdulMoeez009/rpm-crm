@@ -41,7 +41,7 @@ function startClientsListener() {
         if (activeClientId) refreshClientDetailIfOpen();
         checkRenewalNotifications();
       },
-      err => { console.error(err); showToast('❌ Clients sync error: ' + err.message, 'error'); }
+      scheduleLeadsRetry
     );
     return;
   }
@@ -55,7 +55,7 @@ function startClientsListener() {
     if (activeClientId) refreshClientDetailIfOpen();
     checkRenewalNotifications();
   };
-  const onErr = err => { console.error(err); showToast('❌ Clients sync error: ' + err.message, 'error'); };
+  const onErr = scheduleLeadsRetry;
 
   const unsub1 = clientsCol.where('supportUid', '==', currentUid).onSnapshot(
     snap => { bySupport = {}; snap.docs.forEach(d => { bySupport[d.id] = { id: d.id, ...d.data() }; }); rebuild(); }, onErr);

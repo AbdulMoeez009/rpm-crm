@@ -3,6 +3,7 @@
 ══════════════════════════════════════ */
 function openDashboardPipelineStage(stage) {
   showPage('leads', document.getElementById('nav-leads'));
+  document.getElementById('lead-record-view').value = 'active';
   document.getElementById('search-input').value = '';
   document.getElementById('filter-status').value = '';
   document.getElementById('filter-stage').value = stage;
@@ -13,19 +14,21 @@ function openDashboardPipelineStage(stage) {
 
 function openDashboardLeads(status = '') {
   showPage('leads', document.getElementById('nav-leads'));
+  document.getElementById('lead-record-view').value = 'active';
   document.getElementById('filter-status').value = status;
   document.getElementById('search-input').value = '';
   renderLeadsTable();
 }
 
 function renderDashboard() {
+  const currentLeads = activeLeads();
   const previousStats = ['dash-stats', 'dash-revenue-stats'].map(id =>
     [...document.querySelectorAll(`#${id} .stat-val`)].map(element => element.textContent)
   );
-  const total = leads.length;
-  const hot = leads.filter(l => l.status === 'Hot').length;
-  const warm = leads.filter(l => l.status === 'Warm').length;
-  const due = leads.filter(l => l.followupDate && daysUntil(l.followupDate) <= 0).length;
+  const total = currentLeads.length;
+  const hot = currentLeads.filter(l => l.status === 'Hot').length;
+  const warm = currentLeads.filter(l => l.status === 'Warm').length;
+  const due = currentLeads.filter(l => l.followupDate && daysUntil(l.followupDate) <= 0).length;
 
   // Stat cards
   document.getElementById('dash-stats').innerHTML = `
@@ -77,16 +80,16 @@ function renderDashboard() {
   // Pipeline preview (mini version)
   const board = document.getElementById('dash-pipeline');
   board.innerHTML = STAGES.map(stage => {
-    const cols = leads.filter(l => l.stage === stage);
+    const cols = currentLeads.filter(l => l.stage === stage);
     return `<div class="pipeline-col ${COL_CLASS[stage]}">
       <button type="button" class="pipeline-header pipeline-stage-action" onclick="openDashboardPipelineStage('${stage}')" aria-label="View ${cols.length} leads in ${stage}">
         <span>${stage}</span><span class="pipeline-count">${cols.length}</span>
       </button>
       <div class="pipeline-cards">
         ${cols.slice(0,3).map(l => `
-          <div class="pipeline-card" role="button" tabindex="0" data-keyboard-activate aria-label="Open ${l.ownerName || l.bizName}" onclick="openDetail('${l.id}', this)">
-            <div class="pc-name">${l.status === 'Hot' ? '🔥 ' : ''}${l.ownerName || l.bizName}</div>
-            <div class="pc-biz">${l.bizName}</div>
+          <div class="pipeline-card" role="button" tabindex="0" data-keyboard-activate aria-label="Open ${escapeHtml(l.ownerName || l.bizName)}" onclick="openDetail('${l.id}', this)">
+            <div class="pc-name">${l.status === 'Hot' ? '🔥 ' : ''}${escapeHtml(l.ownerName || l.bizName)}</div>
+            <div class="pc-biz">${escapeHtml(l.bizName)}</div>
           </div>
         `).join('')}
         ${cols.length > 3 ? `<div style="font-size:11px;color:var(--muted);padding:4px 0;text-align:center">+${cols.length-3} more</div>` : ''}
@@ -96,7 +99,7 @@ function renderDashboard() {
   }).join('');
 
   // Hot leads mini table
-  const hotLeads = leads.filter(l => l.status === 'Hot');
+  const hotLeads = currentLeads.filter(l => l.status === 'Hot');
   if (hotLeads.length === 0) {
     document.getElementById('hot-leads-table').innerHTML = `<div class="empty-state"><p>No hot leads yet</p><div class="empty-description">Mark a lead as Hot to see it in this list.</div><button class="btn btn-ghost empty-action" onclick="openDashboardLeads('Hot')">View leads</button></div>`;
   } else {
@@ -105,11 +108,11 @@ function renderDashboard() {
         <th>Lead</th><th>Phone</th><th>Stage</th><th>Follow-Up</th><th>Dialer</th><th>Action</th>
       </tr></thead><tbody>
         ${hotLeads.map(l => `<tr class="hot-row">
-          <td><div class="lead-name">🔥 ${l.ownerName||'—'}</div><div class="lead-biz">${l.bizName}</div></td>
-          <td>${l.phone1||'—'}</td>
+          <td><div class="lead-name">🔥 ${escapeHtml(l.ownerName||'—')}</div><div class="lead-biz">${escapeHtml(l.bizName)}</div></td>
+          <td>${escapeHtml(l.phone1||'—')}</td>
           <td>${stageBadge(l.stage)}</td>
           <td>${followupHtml(l.followupDate)}</td>
-          <td>${l.dialer||'—'}</td>
+          <td>${escapeHtml(l.dialer||'—')}</td>
           <td><button class="btn btn-sm btn-primary" onclick="openDetail('${l.id}', this.closest('tr').querySelector('.table-person'))">View</button></td>
         </tr>`).join('')}
       </tbody></table>

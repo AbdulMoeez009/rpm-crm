@@ -20,7 +20,7 @@ function startNotificationsListener() {
       renderNotifBadge();
       renderNotifDropdown();
     },
-    err => console.error(err)
+    scheduleLeadsRetry
   );
 }
 

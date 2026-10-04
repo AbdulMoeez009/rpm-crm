@@ -35,7 +35,7 @@ function showSessionTransition(title, subtitle) {
   showSessionTransition.timer = setTimeout(() => {
     screen.classList.remove('show');
     document.documentElement.classList.remove('session-transition-active');
-  }, 1500);
+  }, 1850);
 }
 
 async function withButtonLoading(buttonId, loadingLabel, operation) {
@@ -121,7 +121,7 @@ auth.onAuthStateChanged(user => {
   if (!user || notifiedThisSession) return;
   notifiedThisSession = true;
   setTimeout(() => {
-    const due = leads.filter(l => l.followupDate && daysUntil(l.followupDate) <= 0).length;
+    const due = activeLeads().filter(l => l.followupDate && daysUntil(l.followupDate) <= 0).length;
     if (due > 0 && 'Notification' in window) {
       Notification.requestPermission().then(p => {
         if (p === 'granted') {

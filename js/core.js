@@ -4,6 +4,55 @@
 let leads = [];       // kept in sync live via Firestore onSnapshot
 let editingId = null; // ID of lead being edited
 let viewingId = null; // ID of lead in detail panel
+function activeLeads() { return leads.filter(lead => !lead.archivedAt); }
+let leadsRetryTimer = null;
+let leadsRetryDelay = 2500;
+
+function setNetworkStatus(state, message = '') {
+  const banner = document.getElementById('network-status');
+  const text = document.getElementById('network-status-message');
+  const retry = document.getElementById('network-retry-button');
+  if (!banner || !text) return;
+  banner.hidden = state === 'online';
+  banner.dataset.state = state;
+  text.textContent = message || (state === 'offline' ? 'You are offline. Changes may wait to sync.' : 'CRM data sync paused.');
+  if (retry) retry.disabled = state === 'offline';
+}
+
+function scheduleLeadsRetry(error) {
+  console.error(error);
+  setNetworkStatus(navigator.onLine ? 'error' : 'offline', navigator.onLine ? 'CRM data did not sync. Retrying shortly…' : 'You are offline. Changes may wait to sync.');
+  if (!navigator.onLine || leadsRetryTimer) return;
+  const delay = leadsRetryDelay;
+  leadsRetryDelay = Math.min(leadsRetryDelay * 2, 30000);
+  leadsRetryTimer = setTimeout(() => {
+    leadsRetryTimer = null;
+    startLeadsListener();
+  }, delay);
+}
+
+function retryDataSync() {
+  if (!navigator.onLine) {
+    setNetworkStatus('offline');
+    showToast('Reconnect to the internet before retrying.', 'error');
+    return;
+  }
+  clearTimeout(leadsRetryTimer);
+  leadsRetryTimer = null;
+  leadsRetryDelay = 2500;
+  setNetworkStatus('error', 'Reconnecting CRM data…');
+  if (!currentUid) { setNetworkStatus('online'); return; }
+  startLeadsListener();
+  if (unsubscribeClients) startClientsListener();
+  if (unsubscribeTeam) startTeamListener();
+  if (unsubscribeRevenue) startRevenueListener();
+  if (unsubscribeAllTasks) startGlobalTasksListener();
+  if (unsubscribeNotifications) startNotificationsListener();
+}
+
+window.addEventListener('offline', () => setNetworkStatus('offline'));
+window.addEventListener('online', retryDataSync);
+if (!navigator.onLine) setNetworkStatus('offline');
 
 // Subscribe to the 'leads' collection — every change pushes here instantly and
 // re-renders the UI automatically.
@@ -16,16 +65,21 @@ let viewingId = null; // ID of lead in detail panel
 // appears once).
 function startLeadsListener() {
   if (unsubscribeLeads) { unsubscribeLeads(); unsubscribeLeads = null; }
+  setNetworkStatus(navigator.onLine ? 'error' : 'offline', navigator.onLine ? 'Syncing CRM data…' : 'You are offline. Changes may wait to sync.');
 
   if (isAdmin) {
     unsubscribeLeads = leadsCol.orderBy('dateAdded', 'desc').onSnapshot(
       snapshot => {
         leads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        clearTimeout(leadsRetryTimer);
+        leadsRetryTimer = null;
+        leadsRetryDelay = 2500;
+        setNetworkStatus('online');
         populateFilterDropdowns();
         renderAll();
         updateSidebarBadges();
       },
-      err => { console.error(err); showToast('❌ Data sync error: ' + err.message, 'error'); }
+      scheduleLeadsRetry
     );
     return;
   }
@@ -41,12 +95,12 @@ function startLeadsListener() {
   };
 
   const unsubOwned = leadsCol.where('ownerUid', '==', currentUid).onSnapshot(
-    snap => { ownedLeads = {}; snap.docs.forEach(d => { ownedLeads[d.id] = { id: d.id, ...d.data() }; }); rebuild(); },
-    err => { console.error(err); showToast('❌ Data sync error: ' + err.message, 'error'); }
+    snap => { ownedLeads = {}; snap.docs.forEach(d => { ownedLeads[d.id] = { id: d.id, ...d.data() }; }); rebuild(); setNetworkStatus('online'); },
+    scheduleLeadsRetry
   );
   const unsubCloser = leadsCol.where('closerUid', '==', currentUid).onSnapshot(
     snap => { closerLeads = {}; snap.docs.forEach(d => { closerLeads[d.id] = { id: d.id, ...d.data() }; }); rebuild(); },
-    err => console.error(err)
+    scheduleLeadsRetry
   );
 
   unsubscribeLeads = () => { unsubOwned(); unsubCloser(); };
@@ -367,22 +421,23 @@ function followupHtml(dateStr) {
 function statusBadge(s) {
   const map = { Hot:'badge-hot', Warm:'badge-warm', Cold:'badge-cold' };
   const icon = { Hot:'🔥', Warm:'🌤', Cold:'❄️' };
-  return `<span class="badge ${map[s]||'badge-cold'}">${icon[s]||''} ${s}</span>`;
+  return `<span class="badge ${map[s]||'badge-cold'}">${icon[s]||''} ${escapeHtml(s || 'Cold')}</span>`;
 }
 
 // Pipeline stage badge HTML
 function stageBadge(s) {
-  return `<span class="badge badge-pipeline ${STAGE_CLASS[s]||'stage-new'}">${s}</span>`;
+  return `<span class="badge badge-pipeline ${STAGE_CLASS[s]||'stage-new'}">${escapeHtml(s || 'New Lead')}</span>`;
 }
 
 /* ══════════════════════════════════════
    SIDEBAR BADGES
 ══════════════════════════════════════ */
 function updateSidebarBadges() {
-  document.getElementById('sb-leads-count').textContent = leads.length;
+  const currentLeads = activeLeads();
+  document.getElementById('sb-leads-count').textContent = currentLeads.length;
 
   // count follow-ups due today or overdue
-  const due = leads.filter(l => l.followupDate && daysUntil(l.followupDate) <= 0).length;
+  const due = currentLeads.filter(l => l.followupDate && daysUntil(l.followupDate) <= 0).length;
   const badge = document.getElementById('sb-followup-count');
   if (due > 0) {
     badge.textContent = due;
@@ -396,11 +451,11 @@ function updateSidebarBadges() {
    TODAY'S FOLLOW-UP STRIP
 ══════════════════════════════════════ */
 function followupStripHtml() {
-  const due = leads.filter(l => l.followupDate && daysUntil(l.followupDate) <= 0);
+  const due = activeLeads().filter(l => l.followupDate && daysUntil(l.followupDate) <= 0);
   if (due.length === 0) return '';
   const chips = due.map(l =>
     `<button type="button" class="followup-chip" onclick="openDetail('${l.id}')">
-      ${l.status === 'Hot' ? '🔥 ' : ''}${l.ownerName || l.bizName}
+      ${l.status === 'Hot' ? '🔥 ' : ''}${escapeHtml(l.ownerName || l.bizName)}
     </button>`
   ).join('');
   return `<div class="followup-strip">

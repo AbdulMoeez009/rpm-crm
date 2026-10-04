@@ -265,7 +265,10 @@ auth.onAuthStateChanged(user => {
 
         document.getElementById('auth-overlay').classList.remove('show');
         document.getElementById('app-root').style.display = 'flex';
-        document.getElementById('topbar-user-email').textContent = user.email + (isAdmin ? ' (Admin)' : '');
+        document.getElementById('topbar-user-email').textContent = user.email;
+        document.getElementById('topbar-user-shortname').textContent = currentUserName.split(/\s+/)[0] || 'Account';
+        document.getElementById('topbar-user-avatar').textContent = currentUserName.trim().charAt(0).toUpperCase() || 'U';
+        document.getElementById('topbar-user-role').textContent = isAdmin ? 'Administrator' : (currentRoles.map(role => ROLE_LABELS[role]).join(', ') || 'Team member');
         document.getElementById('sidebar-user-name').textContent = currentUserName;
         document.getElementById('sidebar-user-role').textContent = isAdmin ? 'Administrator' : (currentRoles.map(role => ROLE_LABELS[role]).join(', ') || 'Team member');
         document.getElementById('sidebar-avatar').textContent = currentUserName.trim().charAt(0).toUpperCase() || 'U';

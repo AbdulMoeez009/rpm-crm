@@ -13,7 +13,7 @@ function startTasksListenerForClient(clientId) {
       clientTasks.sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
       renderTasksList();
     },
-    err => console.error(err)
+    scheduleLeadsRetry
   );
 }
 
@@ -111,7 +111,7 @@ function startGlobalTasksListener() {
         const activePage = document.querySelector('.page.active');
         if (activePage && activePage.id === 'page-tasks') renderGlobalTasksPage();
       },
-      err => console.error(err)
+      scheduleLeadsRetry
     );
     return;
   }
@@ -125,10 +125,10 @@ function startGlobalTasksListener() {
   };
   const unsub1 = tasksCol.where('assignedUid', '==', currentUid).onSnapshot(
     snap => { byAssignee = {}; snap.docs.forEach(d => { byAssignee[d.id] = { id: d.id, ...d.data() }; }); rebuild(); },
-    err => console.error(err));
+    scheduleLeadsRetry);
   const unsub2 = tasksCol.where('createdBy', '==', currentUid).onSnapshot(
     snap => { byCreator = {}; snap.docs.forEach(d => { byCreator[d.id] = { id: d.id, ...d.data() }; }); rebuild(); },
-    err => console.error(err));
+    scheduleLeadsRetry);
 
   unsubscribeAllTasks = () => { unsub1(); unsub2(); };
 }
